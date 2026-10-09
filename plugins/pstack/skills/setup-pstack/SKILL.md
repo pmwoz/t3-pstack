@@ -5,69 +5,68 @@ description: Configure which models pstack uses per role and at what reasoning b
 
 # Setup pstack
 
-Write `~/.cursor/rules/pstack-models.mdc`, an always-applied rule that sets pstack's model per role.
+Write `~/.agents/pstack-models.md`, the sheet that sets pstack's model per role. Agents read it each time a pstack skill starts a subagent, per the [T3 adapter](../poteto-mode/references/t3-adapter.md). Both Claude and Codex read the same file.
 
 ## Steps
 
 ### 1. Detect available models
 
-Enumerate the model slugs you can pass to a `Task` subagent in this session. That is the dependable source. If Cursor also exposes a models API or CLI that lists the user's entitled models, prefer it for completeness. If you cannot detect any, ask the user to paste the slugs they have access to. Never write a real slug you have not confirmed is available. The aliases `inherit-parent` and `auto` are always valid even though they are not detected slugs.
+Call `orchestrator_capabilities`. Its providers with `canRunChildTask: true` and their models are the dependable source: these are the targets `delegate_task` accepts. A real value is a descriptor `<providerInstanceId>:<model id>@<effort>`, such as `claudeAgent:claude-opus-5-5@xhigh` or `codex:gpt-6.1-sol@xhigh`, where the effort is one of the model's "Reasoning" option ids. Never write a descriptor whose provider, model, or effort the catalog does not list. The aliases `inherit-parent` and `auto` are always valid even though they are not detected descriptors.
 
 ### 2. Load current state
 
-The default role-to-model mapping is the rule shape shown in step 5 below. If `~/.cursor/rules/pstack-models.mdc` already exists, read it and treat its `# budget` line and its role values as the current choices. Otherwise start from those defaults. A line whose role is not in step 5, such as `how critics`, is from a retired role. Drop it.
+The default role-to-model mapping is the sheet shape shown in step 5 below. It is upstream's default mapping translated per the adapter's Model per role section for a catalog without Grok. When the catalog has a `grok` instance that can run child tasks, use it wherever step 5 shows `codex:gpt-6.1-sol`. If `~/.agents/pstack-models.md` already exists, read it and treat its `# budget` line and its role values as the current choices. If only `~/.claude/pstack-models.md` exists, from an earlier pstack port, read that one and resolve its short forms (`claude:opus@high`) to exact descriptors. Otherwise start from those defaults. A line whose role is not in step 5, such as `how critics`, is from a retired role. Drop it.
 
 ### 3. Budget, map, and confirm
 
-**(a) Ask for a budget.** Prefer AskQuestion over free text. Offer these four options with these exact labels, and name the current budget when the rule records one. With no rule, say that `large` matches the skill defaults.
+**(a) Ask for a budget.** Prefer a structured question (the adapter's Questions section) over free text. Offer these four options with these exact labels, and name the current budget when the rule records one. With no rule, say that `large` matches the skill defaults.
 
 - `unlimited — max reasoning`
 - `large — xhigh reasoning`
 - `medium — high reasoning`
 - `small — medium reasoning`
 
-**(b) Apply it.** Build the working table from the skill defaults, and on a re-run keep any role you changed by family, list, or alias (`inherit-parent`, `auto`). `unlimited`, `large`, `medium`, and `small` set the effort token of every real slug, panel entries included, to `max`, `xhigh`, `high`, or `medium`. The effort token is the last token, or the one before a trailing `fast`, on the ladder `max` > `xhigh` > `high` > `medium` > `low`. If the result is not a detected slug, use the same family's detected slug with the highest effort at or below the target, else mark the role as needing a choice. `inherit-parent` and `auto` do not change. So `unlimited` turns `claude-opus-5-5-xhigh` into `claude-opus-5-5-max`. Grok slugs top out at `xhigh`, so under `unlimited` the fallback puts Grok at `xhigh` and keeps `grok-4.7-xhigh-fast` as it is. `large` keeps both defaults. `small` turns them into `claude-opus-5-5-medium` and `grok-4.7-medium-fast`.
+**(b) Apply it.** Build the working table from the skill defaults, and on a re-run keep any role you changed by family, list, or alias (`inherit-parent`, `auto`). `unlimited`, `large`, `medium`, and `small` set the effort of every real descriptor, panel entries included, to `max`, `xhigh`, `high`, or `medium`. The effort is the part after `@`, on the ladder `max` > `xhigh` > `high` > `medium` > `low`. Effort ids above `max` in the catalog, such as `ultra`, `ultracode`, or `ultrathink`, are never picked by a budget. If the model does not offer the target effort, use its highest offered effort at or below the target, else mark the role as needing a choice. `inherit-parent` and `auto` do not change. So `unlimited` turns `claudeAgent:claude-opus-5-5@xhigh` into `claudeAgent:claude-opus-5-5@max`. `large` keeps the defaults. `small` turns them into `@medium`.
 
-**(c) Show the roles and confirm.** Show every role with its model, marking any real slug not in the detected set as needing a choice. Also list each line step 2 dropped. Ask whether to accept as-is or change specific roles, offering the detected models plus `inherit-parent` and `auto` (both mean: this role runs on the parent chat model, which is how Auto users stay on Auto) as the options. Prefer AskQuestion over free text. For panel roles (arena runners, architect runners, interrogate reviewers) the value is a list, and one subagent runs per entry, alias entries included, so the list length sets the count. `arena cross-judge pool` is also a list, but Arena selects one value from it whose model family differs from the parent's when possible. `swarm workers` is the default model for every worker unless a race or comparison assigns another model per arm.
+**(c) Show the roles and confirm.** Show every role with its model, marking any real descriptor not in the detected set as needing a choice. Also list each line step 2 dropped. Ask whether to accept as-is or change specific roles, offering the detected models plus `inherit-parent` and `auto` (both mean: this role runs on the parent chat model) as the options. Prefer a structured question over free text. For panel roles (arena runners, architect runners, interrogate reviewers) the value is a list, and one subagent runs per entry, alias entries included, so the list length sets the count. `arena cross-judge pool` is also a list, but Arena selects one value from it whose provider differs from the parent's when possible. `swarm workers` is the default model for every worker unless a race or comparison assigns another model per arm.
 
 ### 4. Validate
 
-Every real slug written must be in the detected set. `inherit-parent` and `auto` always pass. If a chosen real slug is not available, stop and ask again.
+Every real descriptor written must be in the detected set: its provider can run child tasks, its model is listed under that provider, and its effort is one of that model's Reasoning option ids. `inherit-parent` and `auto` always pass. If a chosen descriptor is not available, stop and ask again.
 
-### 5. Write the rule
+### 5. Write the sheet
 
-Write `~/.cursor/rules/pstack-models.mdc` with `alwaysApply: true`, a `# budget` line with the chosen label and its target effort, and one line per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape:
+Write `~/.agents/pstack-models.md` with a `# budget` line with the chosen label and its target effort, and one line per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape, with the upstream defaults translated for a catalog without Grok:
 
 ```
----
-description: pstack per-role model choices (overrides skill defaults)
-alwaysApply: true
----
 # pstack model configuration. One line per role. Delete a line to fall back to the skill default.
-# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model`). Alias entries in a panel list still count toward its fan-out.
+# A value is <providerInstanceId>:<model id>@<effort>, resolved against orchestrator_capabilities.
+# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit the delegate_task target). Alias entries in a panel list still count toward its fan-out.
 # budget: large (xhigh)
-feature, refactoring: grok-4.7-xhigh-fast
-bug-fix: grok-4.7-xhigh-fast
-perf-issue: grok-4.7-xhigh-fast
-hillclimb: grok-4.7-xhigh-fast
-judgment and prose: claude-opus-5-5-xhigh
-hardest tasks: claude-opus-5-5-xhigh
-how explorer: grok-4.7-xhigh-fast
-how explainer: claude-opus-5-5-xhigh
-why investigators: grok-4.7-xhigh-fast
-why synthesizer: claude-opus-5-5-xhigh
-reflect tooling: grok-4.7-xhigh-fast
-reflect judgment, divergent, synthesizer: claude-opus-5-5-xhigh
-arena runners: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast
-arena cross-judge pool: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast
-swarm workers: grok-4.7-xhigh-fast
-architect runners: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast
-interrogate reviewers: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast
+feature, refactoring: codex:gpt-6.1-sol@xhigh
+bug-fix: codex:gpt-6.1-sol@xhigh
+perf-issue: codex:gpt-6.1-sol@xhigh
+hillclimb: codex:gpt-6.1-sol@xhigh
+judgment and prose: claudeAgent:claude-opus-5-5@xhigh
+hardest tasks: claudeAgent:claude-opus-5-5@xhigh
+how explorer: codex:gpt-6.1-sol@xhigh
+how explainer: claudeAgent:claude-opus-5-5@xhigh
+why investigators: codex:gpt-6.1-sol@xhigh
+why synthesizer: claudeAgent:claude-opus-5-5@xhigh
+reflect tooling: codex:gpt-6.1-sol@xhigh
+reflect judgment, divergent, synthesizer: claudeAgent:claude-opus-5-5@xhigh
+arena runners: claudeAgent:claude-opus-5-5@xhigh, codex:gpt-6.1-sol@xhigh
+arena cross-judge pool: claudeAgent:claude-opus-5-5@xhigh, codex:gpt-6.1-sol@xhigh
+swarm workers: codex:gpt-6.1-sol@xhigh
+architect runners: claudeAgent:claude-opus-5-5@xhigh, codex:gpt-6.1-sol@xhigh
+interrogate reviewers: claudeAgent:claude-opus-5-5@xhigh, codex:gpt-6.1-sol@xhigh
 ```
+
+Codex has no plugin hooks, so point Codex at the adapter once. If `${CODEX_HOME:-$HOME/.codex}/AGENTS.md` has no line naming `t3-adapter.md`, append this line to it: "pstack under T3 Code: before a pstack skill starts a subagent or another skill, read `references/t3-adapter.md` in the installed pstack plugin's `poteto-mode` skill." Claude needs no edit, because the plugin's session-start hook names the adapter.
 
 ### 6. Confirm
 
-Tell the user the rule was written and that it applies to new sessions. Re-running this skill updates it.
+Tell the user the sheet was written and that the next subagent a pstack skill starts reads it. Re-running this skill updates it.
 
 ### 7. Offer a verification skill (optional)
 

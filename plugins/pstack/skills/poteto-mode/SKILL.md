@@ -10,6 +10,8 @@ reminder: New task? Playbook match or rigor needed -> apply /poteto-mode. Casual
 
 # Poteto mode
 
+Under T3 Code, read [`references/t3-adapter.md`](references/t3-adapter.md) before you start another skill or a subagent, and before any step that names a Cursor feature.
+
 ## Non-negotiables
 
 The Principles section below grounds every trigger. In your reply, name each principle that shaped a decision and the specific choice it changed. Cite only principles whose leaf SKILL.md you read this session.

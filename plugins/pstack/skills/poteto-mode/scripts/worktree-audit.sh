@@ -22,9 +22,13 @@ prs=$(mktemp)
 gh pr list --author "@me" --state all --limit 1000 \
 	--json number,state,headRefName 2>/dev/null > "$prs" || echo "[]" > "$prs"
 
-# Transcripts dir: ~/.cursor/projects/<slugified-repo-path>/agent-transcripts.
-slug=$(printf '%s' "$main_wt" | sed 's#^/##; s#/#-#g')
-transcripts="$HOME/.cursor/projects/$slug/agent-transcripts"
+# Transcripts of the Claude and Codex sessions behind T3 Code threads. Only the
+# last 30 days are searched. An older chat cannot make a worktree recent.
+transcript_roots=()
+for d in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects" "${CODEX_HOME:-$HOME/.codex}/sessions"; do
+	[ -d "$d" ] && transcript_roots+=("$d")
+done
+[ ${#transcript_roots[@]} -eq 0 ] && echo "warn: no Claude or Codex transcripts found; LAST_CHAT is blank and no worktree can bucket as verify-recent-chat" >&2
 now=$(date +%s)
 
 printf "SIZE\tAGE\tMERGED\tDIRTY\tREMOTE\tPR\tLAST_CHAT\tBUCKET\tWORKTREE\n"
@@ -63,8 +67,9 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	# Most recent chat whose transcript operated in this worktree. Match path
 	# followed by "/" or a quote so glint-482 does not match glint-482-r37.
 	last="-"; last_ts=0
-	if [ -d "$transcripts" ]; then
-		f=$(rg -l -e "${wt}/" -e "${wt}\"" "$transcripts" 2>/dev/null \
+	if [ ${#transcript_roots[@]} -gt 0 ]; then
+		f=$(find "${transcript_roots[@]}" -name '*.jsonl' -mtime -30 -print0 2>/dev/null \
+			| xargs -0 rg -l -e "${wt}/" -e "${wt}\"" 2>/dev/null \
 			| xargs stat -f '%m %N' 2>/dev/null | sort -rn | head -1)
 		if [ -n "$f" ]; then last_ts=$(echo "$f" | awk '{print $1}')
 			last=$(date -r "$last_ts" '+%Y-%m-%d' 2>/dev/null); fi

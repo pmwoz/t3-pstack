@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Claude Code only. Codex plugins have no hooks, so /setup-pstack points Codex at the adapter.
+set -euo pipefail
+root="${CLAUDE_PLUGIN_ROOT:?}"
+reminder=$(sed -n 's/^reminder: //p' "$root/skills/poteto-mode/SKILL.md" | head -1)
+context="pstack for T3 Code is installed at $root.
+$reminder
+pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read $root/skills/<name>/SKILL.md in full and follow it. The Skill tool refuses them.
+Before a pstack skill spawns a subagent or names a Cursor feature, read $root/skills/poteto-mode/references/t3-adapter.md."
+jq -n --arg c "$context" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'
