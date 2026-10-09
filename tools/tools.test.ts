@@ -8,15 +8,8 @@ const b = (s: string) => Buffer.from(s);
 describe("transform", () => {
   const upstream = "---\nname: Poteto Mode\ndescription: x\ndisable-model-invocation: true\nmode: true\n---\n\n# Body\nname: stays\n";
 
-  test("names the skill after its directory and lets the model load it", () => {
-    expect(transform("skills/poteto-mode/SKILL.md", b(upstream)).toString()).toBe(
-      "---\nname: poteto-mode\ndescription: x\nmode: true\n---\n\n# Body\nname: stays\n",
-    );
-  });
-
-  test("keeps the user-only flag on poteto-help", () => {
-    const help = "---\nname: poteto-help\ndescription: x\ndisable-model-invocation: true\n---\nbody\n";
-    expect(transform("skills/poteto-help/SKILL.md", b(help)).toString()).toBe(help);
+  test("names the skill after its directory and keeps everything else", () => {
+    expect(transform("skills/poteto-mode/SKILL.md", b(upstream)).toString()).toBe(upstream.replace("Poteto Mode", "poteto-mode"));
   });
 
   test("leaves files other than SKILL.md alone", () => {

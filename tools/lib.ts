@@ -49,11 +49,6 @@ export function readTree(dir: string, prefix = ""): Tree {
   return tree;
 }
 
-// Cursor treats every pstack skill as typed-only. Claude refuses Skill tool calls to a skill with
-// this flag, which breaks poteto-mode routing, so the flag stays only where upstream means "the user
-// types it" for a reason that also holds here.
-const USER_ONLY = new Set(["poteto-help"]);
-
 /** The mechanical rewrite applied to every upstream file before drift. */
 export function transform(path: string, content: Buffer): Buffer {
   const skill = /^skills\/([^/]+)\/SKILL\.md$/.exec(path)?.[1];
@@ -61,12 +56,8 @@ export function transform(path: string, content: Buffer): Buffer {
   const text = content.toString("utf8");
   const fm = /^---\n([\s\S]*?)\n---\n/.exec(text);
   if (!fm) return content;
-  const lines = fm[1]!.split("\n").flatMap((line) => {
-    // Codex names a skill by this field, Claude by its directory. Upstream poteto-mode says "Poteto Mode".
-    if (line.startsWith("name:")) return [`name: ${skill}`];
-    if (line.startsWith("disable-model-invocation:") && !USER_ONLY.has(skill)) return [];
-    return [line];
-  });
+  // Codex names a skill by this field, Claude by its directory. Upstream poteto-mode says "Poteto Mode".
+  const lines = fm[1]!.split("\n").map((line) => (line.startsWith("name:") ? `name: ${skill}` : line));
   return Buffer.from(`---\n${lines.join("\n")}\n---\n${text.slice(fm[0].length)}`);
 }
 
@@ -78,8 +69,6 @@ export function frontmatterProblems(path: string, content: Buffer): string[] {
   const problems: string[] = [];
   const name = /^name:\s*(.+)$/m.exec(fm)?.[1]?.trim();
   if (name !== skill) problems.push(`${path}: name is "${name}", expected "${skill}" (Codex names skills by this field).`);
-  if (/^disable-model-invocation:\s*true/m.test(fm) && !USER_ONLY.has(skill))
-    problems.push(`${path}: disable-model-invocation blocks Claude from loading this skill through the Skill tool.`);
   if (!/^description:/m.test(fm)) problems.push(`${path}: no description.`);
   return problems;
 }
