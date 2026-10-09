@@ -1,0 +1,18 @@
+{
+  "name": "t3-pstack",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "bun tools/check.ts",
+    "sync": "bun tools/sync.ts",
+    "watch": "bun tools/watch.ts",
+    "t3:pin": "bun tools/t3.ts",
+    "test": "bun test tools",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  }
+}
