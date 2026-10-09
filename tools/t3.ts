@@ -39,7 +39,7 @@ if (import.meta.main) {
     writeFileSync(abs, content);
   }
   pins.t3.commit = sha;
-  pins.t3.paths = paths.filter((p) => !missing.includes(p));
+  pins.t3.paths = paths;
   savePins(pins);
   console.log(JSON.stringify({ commit: sha, files: pins.t3.paths.length, missing }, null, 2));
 }
