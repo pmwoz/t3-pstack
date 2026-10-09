@@ -9,7 +9,8 @@
     "watch": "bun tools/watch.ts",
     "t3:pin": "bun tools/t3.ts",
     "test": "bun test tools",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "version": "bun tools/version.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",

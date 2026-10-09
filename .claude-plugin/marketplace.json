@@ -1,6 +1,8 @@
 {
   "name": "t3-pstack",
-  "owner": { "name": "pmwoz" },
+  "owner": {
+    "name": "pmwoz"
+  },
   "description": "pstack for T3 Code, tracking Cursor's upstream pstack.",
   "plugins": [
     {
@@ -8,7 +10,9 @@
       "source": "./plugins/pstack",
       "description": "Cursor pstack for T3 Code: poteto-mode, principles, and the verified agent workflows, adapted to T3 orchestration for Claude and Codex.",
       "version": "0.1.0",
-      "author": { "name": "Lauren Tan (pstack), pmwoz (T3 Code port)" },
+      "author": {
+        "name": "Lauren Tan (pstack), pmwoz (T3 Code port)"
+      },
       "homepage": "https://github.com/pmwoz/t3-pstack",
       "license": "MIT"
     }
