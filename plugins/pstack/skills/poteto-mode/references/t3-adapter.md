@@ -45,7 +45,7 @@ Upstream reads per-role models from "the `/setup-pstack` rule" (`~/.cursor/rules
 2. Resolve each descriptor against `orchestrator_capabilities` into `target: {providerInstanceId, model, options}`.
    - Provider is a `providerInstanceId` such as `claudeAgent` or `codex`. The short form `claude` means the instance whose `driverKind` is `claudeAgent`. Use an instance with `canRunChildTask: true`.
    - Model is a catalog model id. A short form such as `opus` means the newest catalog id that contains it.
-   - Effort goes into the model option labeled "Reasoning" (`effort` on Claude, `reasoningEffort` on Codex).
+   - Effort goes into the model option labeled "Reasoning" (`effort` on Claude, `reasoningEffort` on Codex). A model without a Reasoning option takes a descriptor with no `@<effort>`, and the target carries no effort option.
    - If the model is not in the catalog, use the closest model of the same provider and say so in the reply.
 3. `inherit-parent` or `auto` means: omit `target`. The lane runs on your own provider and model, and it still counts toward a panel's fan-out.
 4. With no sheet line, translate the skill's default slug: `claude-opus-5-5-<effort>` is `claude:opus@<effort>`, `gpt-5.6-sol-<effort>` is `codex:gpt-6.1-sol@<effort>`, and `grok-4.7-<effort>-fast` is the `grok` provider when the catalog lists one that can run child tasks, else `codex:gpt-6.1-sol@<effort>`.
@@ -55,7 +55,7 @@ Upstream reads per-role models from "the `/setup-pstack` rule" (`~/.cursor/rules
 
 T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child shares the parent's checkout.
 
-- **A lane that writes or checks out a SHA gets its own worktree.** The parent creates it before delegating: `git worktree add [--detach] ${TMPDIR:-/tmp}/pstack/<repo>/<run>/<lane> <ref>`. The brief names the path, and the child works only there. The parent removes it after it has collected the result. This replaces "a cloud agent per worker", `environment: "cloud"`, `cloud_base_branch`, and "each worker its own worktree".
+- **A lane that writes or checks out a SHA gets its own worktree.** The parent creates it before delegating: `git worktree add [--detach] ${TMPDIR:-/tmp}/pstack/<repo>/<run>/<lane> <ref>`. The brief names the path, and the child works only there. Keep the worktree until the last step that reads it is done (arena judging and grafting, verification, merge). Then the parent removes it. This replaces "a cloud agent per worker", `environment: "cloud"`, `cloud_base_branch`, and "each worker its own worktree".
 - **The root works off main.** If `t3_worktree_status` shows the root at the project root and the task writes, call `t3_worktree_handoff` with a new `branch`, `baseRef: "main"`, and the rest of the task as `continuationPrompt`. It ends the turn and moves this thread. Asking an agent to `cd` or run `git worktree add` does not move a T3 thread.
 - **Upstream's capacity numbers assume cloud VMs.** Cap in-flight writing lanes at what this machine runs. Give each live lane its own ports and data directories per the project's verification skill. If the app cannot run side by side, run those lanes in sequence.
 - **Separate top-level threads** come only from an explicit user request for them. Then use `t3_thread_launch` with a `workspaceStrategy`. A launched thread is not a task: follow it with `t3_thread_read` or `t3_thread_wait`, never `task_status`, and it does not wake you when it ends.
@@ -71,6 +71,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child
 - **`/loop` around a PR.** This covers babysit drive and background, shipping, the orchestrate frontier, and autonomous-run events. The root calls `watch_pull_request` and ends the turn. T3 wakes it on checks, reviews, and conflicts. On each wake, take the verdict from `scripts/watch-pr/watch-pr --status-only` (or the playbook's `origin` or `gh pr view` read), act, and keep the watch armed across push waves. Call `unwatch_pull_request` before handing back to the user. `scripts/watch-pr` stays the verdict oracle.
 - **`/loop` on a fixed cadence** (`/loop 1h`, audit ticks, heartbeats). The root calls `schedule_task` with `{type: "interval", everyMs: 3600000}` bound to its own thread, reports `nextRunAt`, and calls `delete_scheduled_task` when the run closes. Schedule from the root, because a child's schedule posts into the child's thread.
 - **`/loop until X`** with no outside event: keep iterating within the run. Add a schedule only when the work must survive turn ends.
+- **Events a PR watch cannot see.** T3 refuses to watch a PR that is already merged, and it cannot watch a ref, a branch without a PR, or a post-merge CI run. For these (the orchestrate retro watcher, an autonomous run waiting on a ref) and for a heartbeat fallback, the root calls `schedule_task` with an interval bound to its own thread. The prompt states the check and the exit condition. Call `delete_scheduled_task` once the condition holds.
 - **Stacks.** `list_thread_pull_requests` reports linked PRs and their stack chains.
 
 ## History and transcripts
@@ -90,7 +91,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child
 
 ## Questions and the user
 
-- **`AskQuestion`.** On Claude, use `AskUserQuestion`. On Codex, use `request_user_input` when the session exposes it. Otherwise ask one plain-text question with labeled options.
+- **`AskQuestion`.** On Claude, use `AskUserQuestion`. On Codex, use `request_user_input` only when the session exposes it and allows it in the current mode (Codex limits it to plan mode). Otherwise ask one plain-text question with labeled options.
 - **A delegated child never asks the user.** It returns `BLOCKED` with the question, and the root asks.
 - **Visuals** (charts, tables, mockups). Build a self-contained page, check it with `html_preview`, then publish it with `html_render` from the root. A child's render lands in the child's thread.
 

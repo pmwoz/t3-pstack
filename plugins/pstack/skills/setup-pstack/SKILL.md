@@ -11,7 +11,7 @@ Write `~/.agents/pstack-models.md`, the sheet that sets pstack's model per role.
 
 ### 1. Detect available models
 
-Call `orchestrator_capabilities`. Its providers with `canRunChildTask: true` and their models are the dependable source: these are the targets `delegate_task` accepts. A real value is a descriptor `<providerInstanceId>:<model id>@<effort>`, such as `claudeAgent:claude-opus-5-5@xhigh` or `codex:gpt-6.1-sol@xhigh`, where the effort is one of the model's "Reasoning" option ids. Never write a descriptor whose provider, model, or effort the catalog does not list. The aliases `inherit-parent` and `auto` are always valid even though they are not detected descriptors.
+Call `orchestrator_capabilities`. Its providers with `canRunChildTask: true` and their models are the dependable source: these are the targets `delegate_task` accepts. A real value is a descriptor `<providerInstanceId>:<model id>@<effort>`, such as `claudeAgent:claude-opus-5-5@xhigh` or `codex:gpt-6.1-sol@xhigh`, where the effort is one of the model's "Reasoning" option ids. A model with no Reasoning option takes `<providerInstanceId>:<model id>` with no effort. Never write a descriptor whose provider, model, or effort the catalog does not list. The aliases `inherit-parent` and `auto` are always valid even though they are not detected descriptors.
 
 ### 2. Load current state
 
@@ -26,13 +26,13 @@ The default role-to-model mapping is the sheet shape shown in step 5 below. It i
 - `medium — high reasoning`
 - `small — medium reasoning`
 
-**(b) Apply it.** Build the working table from the skill defaults, and on a re-run keep any role you changed by family, list, or alias (`inherit-parent`, `auto`). `unlimited`, `large`, `medium`, and `small` set the effort of every real descriptor, panel entries included, to `max`, `xhigh`, `high`, or `medium`. The effort is the part after `@`, on the ladder `max` > `xhigh` > `high` > `medium` > `low`. Effort ids above `max` in the catalog, such as `ultra`, `ultracode`, or `ultrathink`, are never picked by a budget. If the model does not offer the target effort, use its highest offered effort at or below the target, else mark the role as needing a choice. `inherit-parent` and `auto` do not change. So `unlimited` turns `claudeAgent:claude-opus-5-5@xhigh` into `claudeAgent:claude-opus-5-5@max`. `large` keeps the defaults. `small` turns them into `@medium`.
+**(b) Apply it.** Build the working table from the skill defaults, and on a re-run keep any role you changed by family, list, or alias (`inherit-parent`, `auto`). `unlimited`, `large`, `medium`, and `small` set the effort of every real descriptor, panel entries included, to `max`, `xhigh`, `high`, or `medium`. The effort is the part after `@`, on the ladder `max` > `xhigh` > `high` > `medium` > `low`. Effort ids above `max` in the catalog, such as `ultra`, `ultracode`, or `ultrathink`, are never picked by a budget. If the model does not offer the target effort, use its highest offered effort at or below the target, else mark the role as needing a choice. A descriptor with no effort stays as it is. `inherit-parent` and `auto` do not change. So `unlimited` turns `claudeAgent:claude-opus-5-5@xhigh` into `claudeAgent:claude-opus-5-5@max`. `large` keeps the defaults. `small` turns them into `@medium`.
 
 **(c) Show the roles and confirm.** Show every role with its model, marking any real descriptor not in the detected set as needing a choice. Also list each line step 2 dropped. Ask whether to accept as-is or change specific roles, offering the detected models plus `inherit-parent` and `auto` (both mean: this role runs on the parent chat model) as the options. Prefer a structured question over free text. For panel roles (arena runners, architect runners, interrogate reviewers) the value is a list, and one subagent runs per entry, alias entries included, so the list length sets the count. `arena cross-judge pool` is also a list, but Arena selects one value from it whose provider differs from the parent's when possible. `swarm workers` is the default model for every worker unless a race or comparison assigns another model per arm.
 
 ### 4. Validate
 
-Every real descriptor written must be in the detected set: its provider can run child tasks, its model is listed under that provider, and its effort is one of that model's Reasoning option ids. `inherit-parent` and `auto` always pass. If a chosen descriptor is not available, stop and ask again.
+Every real descriptor written must be in the detected set: its provider can run child tasks, its model is listed under that provider, and its effort is one of that model's Reasoning option ids, or absent when the model has no Reasoning option. `inherit-parent` and `auto` always pass. If a chosen descriptor is not available, stop and ask again.
 
 ### 5. Write the sheet
 
