@@ -60,7 +60,7 @@ Upstream marks every skill but `setup-pstack` with `disable-model-invocation: tr
 | `bun run version <x.y.z>` | Sets the version in all four manifests. Claude and Codex cache plugins by version, so bump it on every release. |
 | `bun test tools` | Tests for the transform, the merge decisions, the drift check, and tool-name extraction. |
 
-The [`maintain-t3-pstack`](.claude/skills/maintain-t3-pstack/SKILL.md) project skill runs the whole loop: watch, sync, adapter review, T3 contract update, and a PR per concern. The PR body lists new T3 features worth adopting. A T3 scheduled task runs it twice a week.
+The [`maintain-t3-pstack`](.claude/skills/maintain-t3-pstack/SKILL.md) project skill runs the whole loop: watch, sync, adapter review, T3 contract update, and a PR per concern. The PR body lists new T3 features worth adopting. A T3 scheduled task runs it daily.
 
 To change a skill, edit it under `plugins/pstack`, add its reason to `drift.json`, and run `bun run check`. Prefer a change to the adapter over a change to an upstream file, because every drifted file can conflict on the next sync.
 

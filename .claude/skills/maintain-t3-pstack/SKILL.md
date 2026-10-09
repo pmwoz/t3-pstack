@@ -5,7 +5,7 @@ description: Bring t3-pstack up to date with Cursor's upstream pstack and with t
 
 # Maintain t3-pstack
 
-Work in a worktree off `main`. Under T3 Code, call `t3_worktree_handoff` first if this thread sits at the project root. Open one PR per concern and never merge it. The maintainer merges. Never edit `upstream/` or `t3/contract/` by hand. The tools rewrite them.
+Work in a worktree off `main`. Under T3 Code, call `t3_worktree_handoff` first if this thread sits at the project root. Open one PR per concern and never merge it. The maintainer merges. If a concern already has an open PR (`gh pr list --state open`), update that PR instead of opening another: `git fetch origin <branch> && git switch --detach FETCH_HEAD`, do that section's steps, `git push origin HEAD:<branch>`, and rewrite its title and body. Its pins already cover its commits, so the tools report only newer ones. Set the version relative to `main`. Never edit `upstream/` or `t3/contract/` by hand. The tools rewrite them.
 
 ## 1. See what moved
 
