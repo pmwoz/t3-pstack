@@ -23,12 +23,14 @@ A skill that names another one ("the **how** skill", "run `/deslop`", "the **pro
 
 Every subagent a skill spawns is one `delegate_task` call. Each lane is a T3 child thread with its own provider, model, and effort, so panels can mix Claude and Codex.
 
+Omit `runtimeMode` on every `delegate_task`, so the child inherits yours. A narrower mode is not a sandbox. `approval-required` and `auto-accept-edits` make the user approve the child's tool calls by hand, which stalls an unattended run.
+
 | Cursor construct | Under T3 |
 |---|---|
 | `Task`, "spawn N in one message" | N `delegate_task` calls in one turn, `mode: "async"`. The brief is self-contained: goal, file pointers, write scope, output path, report shape. A child does not see your conversation. |
 | `subagent_type: "poteto-agent"` or `"Comment Sicko"` | The brief starts with "Read `<pstack-root>/agents/<file>.md` in full and act as it." (`poteto-agent.md`, `comment-sicko.md`), then the scope. |
 | `subagent_type: generalPurpose`, agent mode | No agent file. Children load the provider's MCP servers, so `why` investigators and `reflect` reviewers keep their sources. |
-| `readonly: true` | The brief says read-only. Set `runtimeMode` no broader than the work needs. |
+| `readonly: true` | The brief says read-only, and the lane reads a frozen SHA (Worktrees section). |
 | `run_in_background: true`, waiting on the result | Async is the default. Completion wakes you. End the turn. Do not poll. Call `task_status` only when you need a result mid-turn. "The Task response body" is the task `summary`. |
 | Resume, message, or queue a follow-up | A new round is a new `delegate_task` with the full consolidated brief and a new `clientRequestId`. Never `t3_thread_send` a new round to `childThreadId`. Send to a live child (`mode: "queue"` or `"steer"`) only for upstream's narrow case: state that lives in that child. |
 | Stop, hold, cancel nested subagents | `task_cancel` (it stops nested tasks and their PR watches). A hold is a `t3_thread_send` with `mode: "steer"` and the zero-writes order. |
@@ -56,6 +58,8 @@ Upstream reads per-role models from "the `/setup-pstack` rule" (`~/.cursor/rules
 T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child shares the parent's checkout.
 
 - **A lane that writes or checks out a SHA gets its own worktree.** The parent creates it before delegating: `git worktree add [--detach] ${TMPDIR:-/tmp}/pstack/<repo>/<run>/<lane> <ref>`. The brief names the path, and the child works only there. Keep the worktree until the last step that reads it is done (arena judging and grafting, verification, merge). Then the parent removes it. This replaces "a cloud agent per worker", `environment: "cloud"`, `cloud_base_branch`, and "each worker its own worktree".
+- **Read-only lanes review a frozen SHA.** Before a round of read-only lanes, such as interrogate reviewers, commit what is under review and run `git worktree add --detach ${TMPDIR:-/tmp}/pstack/<repo>/<run>/review-<sha> <sha>`. The brief names that path and the SHA, and the round's read-only lanes read only there, because your own worktree keeps changing while they work. Remove it after you synthesize the round.
+- **Evidence outlives worktrees.** Write the decision log, verification output, review prompts, and child reports under `${PSTACK_STORE:-$HOME/.pstack/store}/<repo-name>/<run>/`, never inside a worktree. That directory is show-me-your-work's "work dir". `git worktree remove` deletes ignored files, and `gh pr merge --delete-branch` removes the worktree that holds the merged branch.
 - **The root works off main.** If `t3_worktree_status` shows the root at the project root and the task writes, call `t3_worktree_handoff` with a new `branch`, `baseRef: "main"`, and the rest of the task as `continuationPrompt`. It ends the turn and moves this thread. Asking an agent to `cd` or run `git worktree add` does not move a T3 thread.
 - **Upstream's capacity numbers assume cloud VMs.** Cap in-flight writing lanes at what this machine runs. Give each live lane its own ports and data directories per the project's verification skill. If the app cannot run side by side, run those lanes in sequence.
 - **Separate top-level threads** come only from an explicit user request for them. Then use `t3_thread_launch` with a `workspaceStrategy`. A launched thread is not a task: follow it with `t3_thread_read` or `t3_thread_wait`, never `task_status`, and it does not wake you when it ends.
@@ -107,6 +111,13 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child
 ## Tool names on Codex
 
 The skills name Claude tools. On Codex, `Read`, `Grep`, and `Glob` are shell commands (`cat`, `rg`, `find`). Edits use `apply_patch`, and the todolist is `update_plan`.
+
+## Local shell
+
+Upstream's commands assume a Linux cloud VM. Under T3 they run on the user's machine, often macOS with zsh, so check `uname` and `$SHELL` before you write shell.
+
+- macOS has no `timeout`. Bound a command with `perl -e 'alarm shift; exec @ARGV' <seconds> <command>`, which exits 142 on expiry.
+- zsh does not split an unquoted `$var` into words. Use `${=var}` or an array.
 
 ## A broken mapping
 
