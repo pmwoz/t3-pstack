@@ -20,9 +20,9 @@ codex plugin marketplace add pmwoz/t3-pstack
 codex plugin add pstack@t3-pstack
 ```
 
-Then run `/pstack:setup-pstack` (Claude) or `$setup-pstack` (Codex). It reads the models T3 offers, asks for a reasoning budget, and writes `~/.agents/pstack-models.md`, one model per role.
+Then run `/pstack:setup-pstack` (Claude) or `$pstack:setup-pstack` (Codex). It reads the models T3 offers, asks for a reasoning budget, and writes `~/.agents/pstack-models.md`, one model per role.
 
-Start a task with `/pstack:poteto-mode` (Claude) or `$poteto-mode` (Codex), a goal, and a check that can pass or fail. `/pstack:poteto-help` answers questions about pstack.
+Start a task with `/pstack:poteto-mode` (Claude) or `$pstack:poteto-mode` (Codex), a goal, and a check that can pass or fail. `/pstack:poteto-help` answers questions about pstack.
 
 If you use another pstack port, disable it first. Both register `pstack:*` skills.
 

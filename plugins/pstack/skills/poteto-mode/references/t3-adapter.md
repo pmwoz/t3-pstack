@@ -16,7 +16,7 @@ A skill that names another one ("the **how** skill", "run `/deslop`", "the **pro
 
 - Principle skills live at `skills/principle-<name>/SKILL.md`.
 - `deslop`, `control-ui`, and `control-cli` come from Cursor's team kit and ship in `skills/`.
-- A user who types `/pstack:<name>` (Claude) or `$<name>` (Codex) starts the skill directly. That path is unchanged.
+- A user who types `/pstack:<name>` (Claude) or `$pstack:<name>` (Codex) starts the skill directly. That path is unchanged.
 - A `create-skill` step uses the `skill-creator` skill when the session has it. Otherwise follow `playbooks/authoring-a-skill.md`.
 
 ## Subagents
@@ -97,7 +97,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child
 
 ## Cursor products with no counterpart
 
-- **Custom Mode, `reminder`, Option+Enter.** None. Start a task with `/pstack:poteto-mode` (Claude) or `$poteto-mode` (Codex).
+- **Custom Mode, `reminder`, Option+Enter.** None. Start a task with `/pstack:poteto-mode` (Claude) or `$pstack:poteto-mode` (Codex).
 - **Cursor's built-in `/babysit`.** Not present. The Babysit playbook is the only babysit.
 - **Plan Mode.** T3 interaction mode `plan`.
 - **Automations** (`automations/benny`). A webhook or fixed-time `schedule_task`. Get webhook signing secrets with `request_secret`.

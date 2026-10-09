@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Answer the user's question about pstack, hand them a prompt they can send, and link the file the answer came from. For a help question, don't start the work. The user asked how, and a pstack run spends real tokens, so let them send the prompt.
 
-A message that asks for work, such as "use pstack to fix this bug", is not a help question. Read [`poteto-mode`](../poteto-mode/SKILL.md), do the work under it, and mention once that each new task starts with `/pstack:poteto-mode` on Claude or `$poteto-mode` on Codex.
+A message that asks for work, such as "use pstack to fix this bug", is not a help question. Read [`poteto-mode`](../poteto-mode/SKILL.md), do the work under it, and mention once that each new task starts with `/pstack:poteto-mode` on Claude or `$pstack:poteto-mode` on Codex.
 
 This file maps questions to the skills and guide pages that hold the answers. Those files own the details. Read the file you route to before you quote it, and trust it when it disagrees with this map. The links here point into the installed plugin, which the user may not be able to open, so give the user the file's public copy: `https://github.com/pmwoz/t3-pstack/blob/main/plugins/pstack/` followed by its path.
 
@@ -36,7 +36,7 @@ When the model rule is missing and it matters, ask whether the user wants to pic
 
 1. Install for each provider used in T3 Code. Claude: `claude plugin marketplace add pmwoz/t3-pstack`, then `claude plugin install pstack@t3-pstack`. Codex: `codex plugin marketplace add pmwoz/t3-pstack`, then `codex plugin add pstack@t3-pstack`. Start a new thread afterwards.
 2. Run [`/setup-pstack`](../setup-pstack/SKILL.md). It reads the models T3 offers, asks for a reasoning budget, maps a model to each role, and writes `~/.agents/pstack-models.md`. Agents read it each time they start a subagent.
-3. Start a real task with `/pstack:poteto-mode` (Claude) or `$poteto-mode` (Codex), a goal, and a check that can pass or fail.
+3. Start a real task with `/pstack:poteto-mode` (Claude) or `$pstack:poteto-mode` (Codex), a goal, and a check that can pass or fail.
 
 Installing changes nothing until the user invokes a skill. Only `/setup-pstack` loads from the user's words. The [README](../../README.md) and [guide page 1](../../docs/guide/01-setup.md) have the details. Offer to word their first prompt with them, per [`references/prompting.md`](references/prompting.md).
 

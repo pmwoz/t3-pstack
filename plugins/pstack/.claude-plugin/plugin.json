@@ -1,7 +1,7 @@
 {
   "name": "pstack",
   "displayName": "pstack",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cursor pstack for T3 Code: poteto-mode, principles, and the verified agent workflows, adapted to T3 orchestration for Claude and Codex.",
   "author": {
     "name": "Lauren Tan (pstack), pmwoz (T3 Code port)"
