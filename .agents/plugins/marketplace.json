@@ -1,0 +1,12 @@
+{
+  "name": "t3-pstack",
+  "interface": { "displayName": "pstack for T3 Code" },
+  "plugins": [
+    {
+      "name": "pstack",
+      "source": { "source": "local", "path": "./plugins/pstack" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL", "products": ["CODEX"] },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  ".claude-plugin/plugin.json": "Claude Code plugin manifest.",
+  ".codex-plugin/plugin.json": "Codex plugin manifest."
+}
