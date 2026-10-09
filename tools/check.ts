@@ -17,8 +17,9 @@ import {
   type Tree,
 } from "./lib.ts";
 
-// Backticked snake_case words in our own prose that are not T3 tools.
-const NOT_T3_TOOLS = new Set<string>([]);
+// Backticked snake_case words in our own prose that are not T3 tools: Cursor Task
+// parameters the adapter maps, and Codex's own tool names.
+const NOT_T3_TOOLS = new Set(["run_in_background", "cloud_base_branch", "request_user_input", "apply_patch", "update_plan"]);
 
 export function driftProblems(expected: Tree, actual: Tree, drift: Drift): string[] {
   const problems: string[] = [];
@@ -43,7 +44,7 @@ export function linkProblems(tree: Tree): string[] {
     for (const m of text.matchAll(/\]\(([^)\s]+)\)/g)) {
       const target = m[1]!.split("#")[0]!;
       // Skip URLs and bare placeholders such as `[text](url)` in prompt templates.
-      if (!target || /^[a-z]+:/i.test(target) || !/[./]/.test(target)) continue;
+      if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target) || !/[./]/.test(target)) continue;
       const resolved = normalize(join(dirname(path), decodeURI(target))).replace(/\/$/, "");
       const isDir = [...tree.keys()].some((p) => p.startsWith(`${resolved}/`));
       if (!tree.has(resolved) && !isDir) problems.push(`${path}: broken link ${m[1]}`);
@@ -52,11 +53,13 @@ export function linkProblems(tree: Tree): string[] {
   return problems;
 }
 
-export function toolReferenceProblems(tree: Tree, drift: Drift, tools: Set<string>): string[] {
+/** Checks only the lines this port wrote, since upstream text names Cursor identifiers. */
+export function toolReferenceProblems(expected: Tree, tree: Tree, drift: Drift, tools: Set<string>): string[] {
   const problems: string[] = [];
   for (const path of Object.keys(drift)) {
     if (!path.endsWith(".md")) continue;
-    const text = tree.get(path)?.toString("utf8") ?? "";
+    const upstreamLines = new Set(expected.get(path)?.toString("utf8").split("\n"));
+    const text = (tree.get(path)?.toString("utf8") ?? "").split("\n").filter((l) => !upstreamLines.has(l)).join("\n");
     for (const m of text.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/g))
       if (!tools.has(m[1]!) && !NOT_T3_TOOLS.has(m[1]!))
         problems.push(`${path}: \`${m[1]}\` is not a tool in the pinned T3 contract.`);
@@ -89,11 +92,12 @@ if (import.meta.main) {
   const pins = loadPins();
   const drift = loadDrift();
   const actual = readTree(PLUGIN_DIR);
+  const expected = expectedTree(pins, UPSTREAM_DIR);
   const problems = [
-    ...driftProblems(expectedTree(pins, UPSTREAM_DIR), actual, drift),
+    ...driftProblems(expected, actual, drift),
     ...[...actual].flatMap(([path, content]) => frontmatterProblems(path, content)),
     ...linkProblems(actual),
-    ...toolReferenceProblems(actual, drift, t3ToolNames(readTree(join(T3_DIR, "contract")))),
+    ...toolReferenceProblems(expected, actual, drift, t3ToolNames(readTree(join(T3_DIR, "contract")))),
     ...modeProblems(pins),
     ...manifestProblems(),
   ];
