@@ -5,6 +5,6 @@ root="${CLAUDE_PLUGIN_ROOT:?}"
 reminder=$(sed -n 's/^reminder: //p' "$root/skills/poteto-mode/SKILL.md" | head -1)
 context="pstack for T3 Code is installed at $root.
 $reminder
-pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read $root/skills/<name>/SKILL.md in full and follow it. The Skill tool refuses them.
+pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read $root/skills/<name>/SKILL.md in full and follow it. The Skill tool refuses them. Read each file with its own Read call. In zsh, an unquoted separator such as echo ===== aborts the rest of a chained shell line.
 Before a pstack skill spawns a subagent or names a Cursor feature, read $root/skills/poteto-mode/references/t3-adapter.md."
 jq -n --arg c "$context" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'

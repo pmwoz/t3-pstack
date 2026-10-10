@@ -49,6 +49,7 @@ Upstream reads per-role models from "the `/setup-pstack` rule" (`~/.cursor/rules
    - Model is a catalog model id. A short form such as `opus` means the newest catalog id that contains it.
    - Effort goes into the model option labeled "Reasoning" (`effort` on Claude, `reasoningEffort` on Codex). A model without a Reasoning option takes a descriptor with no `@<effort>`, and the target carries no effort option.
    - If the model is not in the catalog, use the closest model of the same provider and say so in the reply.
+   - A descriptor that already names a full `providerInstanceId` and catalog model id needs no lookup. Build the target from it directly. Call `orchestrator_capabilities` only for a short form or after `delegate_task` rejects a target. On Claude its result overflows the tool limit and is saved to a file. Query that file with `jq`, for example `jq -c '.providers[] | select(.providerInstanceId == "codex") | [.models[].id]' <file>`.
 3. `inherit-parent` or `auto` means: omit `target`. The lane runs on your own provider and model, and it still counts toward a panel's fan-out.
 4. With no sheet line, translate the skill's default slug: `claude-opus-5-5-<effort>` is `claude:opus@<effort>`, `gpt-5.6-sol-<effort>` is `codex:gpt-6.1-sol@<effort>`, and `grok-4.7-<effort>-fast` is the `grok` provider when the catalog lists one that can run child tasks, else `codex:gpt-6.1-sol@<effort>`.
 5. "A model family" is the provider. A cross-family judge or reviewer runs on a different provider than the work it judges.
@@ -58,8 +59,9 @@ Upstream reads per-role models from "the `/setup-pstack` rule" (`~/.cursor/rules
 T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child shares the parent's checkout.
 
 - **A lane that writes or checks out a SHA gets its own worktree.** The parent creates it before delegating: `git worktree add [--detach] ${TMPDIR:-/tmp}/pstack/<repo>/<run>/<lane> <ref>`. The brief names the path, and the child works only there. Keep the worktree until the last step that reads it is done (arena judging and grafting, verification, merge). Then the parent removes it. This replaces "a cloud agent per worker", `environment: "cloud"`, `cloud_base_branch`, and "each worker its own worktree".
+- **A before run gets its own worktree too.** Reproduce the old behavior in `git worktree add --detach ${TMPDIR:-/tmp}/pstack/<repo>/<run>/before origin/<default-branch>`, whether the root or a lane runs it. Never copy the default branch's files into the working checkout, because the next commit picks them up.
 - **Read-only lanes review a frozen SHA.** Before a round of read-only lanes, such as interrogate reviewers, commit what is under review and run `git worktree add --detach ${TMPDIR:-/tmp}/pstack/<repo>/<run>/review-<sha> <sha>`. The brief names that path and the SHA, and the round's read-only lanes read only there, because your own worktree keeps changing while they work. Remove it after you synthesize the round.
-- **Evidence outlives worktrees.** Write the decision log, verification output, review prompts, and child reports under `${PSTACK_STORE:-$HOME/.pstack/store}/<repo-name>/<run>/`, never inside a worktree. That directory is show-me-your-work's "work dir". `git worktree remove` deletes ignored files, and `gh pr merge --delete-branch` removes the worktree that holds the merged branch.
+- **Evidence outlives worktrees.** Write the decision log, verification output, review prompts, and child reports under `${PSTACK_STORE:-$HOME/.pstack/store}/<repo-name>/<run>/`, never inside a worktree. That directory is show-me-your-work's "work dir". `git worktree remove` deletes ignored files, and `gh pr merge --delete-branch` removes the worktree that holds the merged branch. A project verification skill that writes evidence inside the checkout (`build/`, `work/`) still applies. Copy its evidence directory into the work dir before the reply or the trail cites it.
 - **The user picks the root's workspace.** The user starts a thread in a worktree from the T3 UI. The root works in the checkout its thread is in and never moves it. If the root sits on `main` and the task writes, it creates a branch there with `git switch -c <branch>`.
 - **Upstream's capacity numbers assume cloud VMs.** Cap in-flight writing lanes at what this machine runs. Give each live lane its own ports and data directories per the project's verification skill. If the app cannot run side by side, run those lanes in sequence.
 - **Separate top-level threads** come only from an explicit user request for them. Then use `t3_thread_launch` with a `workspaceStrategy`. A launched thread is not a task: follow it with `t3_thread_read` or `t3_thread_wait`, never `task_status`, and it does not wake you when it ends.
@@ -76,11 +78,12 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child
 - **`/loop` on a fixed cadence** (`/loop 1h`, audit ticks, heartbeats). The root calls `schedule_task` with `{type: "interval", everyMs: 3600000}` bound to its own thread, reports `nextRunAt`, and calls `delete_scheduled_task` when the run closes. Schedule from the root, because a child's schedule posts into the child's thread.
 - **`/loop until X`** with no outside event: keep iterating within the run. Add a schedule only when the work must survive turn ends.
 - **Events a PR watch cannot see.** T3 refuses to watch a PR that is already merged, and it cannot watch a ref, a branch without a PR, or a post-merge CI run. For these (the orchestrate retro watcher, an autonomous run waiting on a ref) and for a heartbeat fallback, the root calls `schedule_task` with an interval bound to its own thread. The prompt states the check and the exit condition. Call `delete_scheduled_task` once the condition holds.
+- **Never end a turn that waits only on a background shell command.** It dies when the user settles the thread or the session ends, and then nothing wakes you. Write the reply first. Report what is still pending as a next step.
 - **Stacks.** `list_thread_pull_requests` reports linked PRs and their stack chains.
 
 ## History and transcripts
 
-- **Current chat.** `t3_thread_read` with your thread id (`view: "activity"` lists tool calls and files read). This replaces `agent-transcripts/` paths and "the chat UUID".
+- **Current chat.** `t3_thread_read` with your thread id (`view: "activity"` lists tool calls and files read). This replaces `agent-transcripts/` paths and "the chat UUID". `currentThreadId` in a `t3_thread_list` result is your thread id. A child that reads this run's transcript, such as show-me-your-work's cross-model reviewer, gets that thread id and reads it with `t3_thread_read`. Never pass it a JSONL path.
 - **Earlier chats** (recall, reflect, session pickup, show-me-your-work audits). Use `t3_thread_search` and `t3_thread_list` in this project only. Pass thread ids to children, not file paths. Cite a thread as `[title](t3-thread://v1/<threadId>)`.
 - **Shell fallback.** `~/.claude/projects/<encoded-cwd>/*.jsonl` (Claude) and `~/.codex/sessions/**/*.jsonl` (Codex).
 - **Pinned and active chats** ("from the user or the sidebar") are threads with `t3_thread_list` status not settled.
@@ -118,6 +121,7 @@ Upstream's commands assume a Linux cloud VM. Under T3 they run on the user's mac
 
 - macOS has no `timeout`. Bound a command with `perl -e 'alarm shift; exec @ARGV' <seconds> <command>`, which exits 142 on expiry.
 - zsh does not split an unquoted `$var` into words. Use `${=var}` or an array.
+- zsh expands a word that starts with `=` to a command path. `echo =====` fails with `==== not found` and drops the rest of the line. Quote separators (`echo '====='`), or read each file with its own Read call.
 
 ## A broken mapping
 
