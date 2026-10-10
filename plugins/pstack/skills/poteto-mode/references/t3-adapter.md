@@ -32,9 +32,9 @@ Omit `runtimeMode` on every `delegate_task`, so the child inherits yours. A narr
 | `subagent_type: generalPurpose`, agent mode | No agent file. Children load the provider's MCP servers, so `why` investigators and `reflect` reviewers keep their sources. |
 | `readonly: true` | The brief says read-only, and the lane reads a frozen SHA (Worktrees section). |
 | `run_in_background: true`, waiting on the result | Async is the default. Completion wakes you. End the turn. Do not poll. Call `task_status` only when you need a result mid-turn. "The Task response body" is the task `summary`. |
-| Resume, message, or queue a follow-up | A new round is a new `delegate_task` with the full consolidated brief and a new `clientRequestId`. Never `t3_thread_send` a new round to `childThreadId`. Send to a live child (`mode: "queue"` or `"steer"`) only for upstream's narrow case: state that lives in that child. |
+| Resume, message, or queue a follow-up | A new round is a new `delegate_task` with the full consolidated brief and a new `clientRequestId`. Never `t3_thread_send` a new round to `childThreadId`. Send to the child only for upstream's narrow case: state that lives in that child. A live child takes `mode: "queue"` or `"steer"`. A child whose task finished can still take a send, for example when its worktree holds uncommitted changes. When the send returns a `taskId`, the follow-up is its own task: record it, and its completion wakes you. |
 | Stop, hold, cancel nested subagents | `task_cancel` (it stops nested tasks and their PR watches). A hold is a `t3_thread_send` with `mode: "steer"` and the zero-writes order. |
-| Liveness, the Cursor dashboard, `children.tsv` IDs | `task_status` on the recorded `taskId`. Record `taskId` where upstream records subagent IDs. |
+| Liveness, the Cursor dashboard, `children.tsv` IDs | `task_status` on the recorded `taskId`. Record `taskId` where upstream records subagent IDs, including each `taskId` a follow-up send returns. |
 | Eval blinding | Also blind the `title` and the worktree path, which the child can see. |
 
 `task_status` only finds tasks your own thread delegated. A grandchild's task belongs to its parent.
