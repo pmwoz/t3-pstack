@@ -28,7 +28,7 @@ Omit `runtimeMode` on every `delegate_task`, so the child inherits yours. A narr
 | Cursor construct | Under T3 |
 |---|---|
 | `Task`, "spawn N in one message" | N `delegate_task` calls in one turn, `mode: "async"`. The brief is self-contained: goal, file pointers, write scope, output path, report shape. A child does not see your conversation. |
-| `subagent_type: "poteto-agent"` or `"Comment Sicko"` | The brief starts with "Read `<pstack-root>/agents/<file>.md` in full and act as it." (`poteto-agent.md`, `comment-sicko.md`), then the scope. |
+| `subagent_type: "poteto-agent"` or `"comment-sicko"` | The brief starts with "Read `<pstack-root>/agents/<file>.md` in full and act as it." (`poteto-agent.md`, `comment-sicko.md`), then the scope. |
 | `subagent_type: generalPurpose`, agent mode | No agent file. Children load the provider's MCP servers, so `why` investigators and `reflect` reviewers keep their sources. |
 | `readonly: true` | The brief says read-only, and the lane reads a frozen SHA (Worktrees section). |
 | `run_in_background: true`, waiting on the result | Async is the default. Completion wakes you. End the turn. Do not poll. Call `task_status` only when you need a result mid-turn. "The Task response body" is the task `summary`. |
@@ -101,7 +101,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child
 
 - **`AskQuestion`.** On Claude, use `AskUserQuestion`. On Codex, use `request_user_input` only when the session exposes it and allows it in the current mode (Codex limits it to plan mode). Otherwise ask one plain-text question with labeled options.
 - **A delegated child never asks the user.** It returns `BLOCKED` with the question, and the root asks.
-- **Visuals** (charts, tables, mockups). Build a self-contained page, check it with `html_preview`, then publish it with `html_render` from the root. A child's render lands in the child's thread. Show verification screenshots the same way, for example a before and after grid, before the reply that cites them. Write each image as an absolute path in `src`. T3 inlines local images into the page, so the thread keeps them after the worktree is gone.
+- **Visuals** (charts, tables, mockups). Build a self-contained page, check it with `html_preview`, then publish it with `html_render` from the root. A child's render lands in the child's thread. Show verification screenshots the same way, for example a before and after grid, before the reply that cites them. Write each image as an absolute path in `src`. T3 inlines local images into the page, so the thread keeps them after the worktree is gone. A Mermaid fence in the reply renders as a diagram. A generated image needs an image tool from your provider. T3 has none, so without one draw a diagram or chart instead.
 
 ## Cursor products with no counterpart
 
