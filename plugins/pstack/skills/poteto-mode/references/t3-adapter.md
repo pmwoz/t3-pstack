@@ -8,6 +8,8 @@ T3 Code's own injected instructions win over this file if they ever disagree. Re
 
 `<pstack-root>` is the installed plugin directory: the directory that holds `skills/`, `agents/`, and `docs/`. It is two levels above the base directory of any pstack skill you are running. On Claude, the session-start context names it.
 
+A `poteto-agent` given no path looks for poteto-mode under `~/.claude/plugins/cache/t3-pstack/` (Claude) or `${CODEX_HOME:-$HOME/.codex}/plugins/cache/t3-pstack/` (Codex), not `~/.cursor/plugins/`. It compares the `version` in `.claude-plugin/plugin.json` or `.codex-plugin/plugin.json`. Do not search all of `plugins/`, because other pstack ports install there with higher versions.
+
 The skills cite upstream paths such as `pstack/skills/<x>/...` or `git show origin/main:pstack/skills/<x>/...`. Read `<pstack-root>/skills/<x>/...` instead. A plan file keeps the upstream literal, because `scripts/check-plan.mjs` checks for it.
 
 ## Starting another skill
@@ -101,11 +103,11 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child
 
 - **`AskQuestion`.** On Claude, use `AskUserQuestion`. On Codex, use `request_user_input` only when the session exposes it and allows it in the current mode (Codex limits it to plan mode). Otherwise ask one plain-text question with labeled options.
 - **A delegated child never asks the user.** It returns `BLOCKED` with the question, and the root asks.
-- **Visuals** (charts, tables, mockups). Build a self-contained page, check it with `html_preview`, then publish it with `html_render` from the root. A child's render lands in the child's thread. Show verification screenshots the same way, for example a before and after grid, before the reply that cites them. Write each image as an absolute path in `src`. T3 inlines local images into the page, so the thread keeps them after the worktree is gone. A Mermaid fence in the reply renders as a diagram. A generated image needs an image tool from your provider. T3 has none, so without one draw a diagram or chart instead.
+- **Visuals** (charts, tables, mockups, Cursor's `/visualize`). Build a self-contained page, check it with `html_preview`, then publish it with `html_render` from the root. A child's render lands in the child's thread. Show verification screenshots the same way, for example a before and after grid, before the reply that cites them. Write each image as an absolute path in `src`. T3 inlines local images into the page, so the thread keeps them after the worktree is gone. A Mermaid fence in the reply renders as a diagram. A generated image needs an image tool from your provider. T3 has none, so without one draw a diagram or chart instead.
 
 ## Cursor products with no counterpart
 
-- **Custom Mode, `reminder`, Option+Enter.** None. Start a task with `/pstack:poteto-mode` (Claude) or `$pstack:poteto-mode` (Codex).
+- **Custom Mode, Option+Enter.** None. Start a task with `/pstack:poteto-mode` (Claude) or `$pstack:poteto-mode` (Codex).
 - **Cursor's built-in `/babysit`.** Not present. The Babysit playbook is the only babysit.
 - **Plan Mode.** T3 interaction mode `plan`.
 - **Automations** (`automations/benny`). A webhook or fixed-time `schedule_task`. Get webhook signing secrets with `request_secret`.
