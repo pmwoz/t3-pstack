@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
-# Claude Code only. Codex plugins have no hooks, so /setup-pstack points Codex at the adapter.
+# Claude runs this from hooks/hooks.json, and Codex runs it from hooks/codex-hooks.json with the argument codex.
 set -euo pipefail
 root="${CLAUDE_PLUGIN_ROOT:?}"
+case "${1:-}" in
+  "")
+    mode="/poteto-mode"
+    refusal="The Skill tool refuses them."
+    reads="Read each file with its own Read call."
+    ;;
+  codex)
+    mode="poteto-mode"
+    refusal="Codex keeps them out of your skill list, so read the file instead of waiting for a skill match."
+    reads="Read each file with its own shell command."
+    ;;
+  *)
+    echo "session-start: unknown provider $1" >&2
+    exit 2
+    ;;
+esac
 context="pstack for T3 Code is installed at $root.
-New task? Playbook match or rigor needed -> apply /poteto-mode. Casual turn or user opts out -> don't.
-pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read $root/skills/<name>/SKILL.md in full and follow it. The Skill tool refuses them. Read each file with its own Read call. In zsh, an unquoted separator such as echo ===== aborts the rest of a chained shell line.
+New task? Playbook match or rigor needed -> apply $mode. Casual turn or user opts out -> don't.
+pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read $root/skills/<name>/SKILL.md in full and follow it. $refusal $reads In zsh, an unquoted separator such as echo ===== aborts the rest of a chained shell line.
 Before a pstack skill spawns a subagent or names a Cursor feature, read $root/skills/poteto-mode/references/t3-adapter.md."
 jq -n --arg c "$context" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'

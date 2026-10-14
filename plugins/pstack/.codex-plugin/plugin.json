@@ -9,6 +9,7 @@
   "repository": "https://github.com/pmwoz/t3-pstack",
   "license": "MIT",
   "skills": "./skills/",
+  "hooks": "./hooks/codex-hooks.json",
   "interface": {
     "logo": "./assets/logo.png",
     "displayName": "pstack",

@@ -62,7 +62,7 @@ architect runners: claudeAgent:claude-opus-5-5@xhigh, codex:gpt-6.1-sol@xhigh
 interrogate reviewers: claudeAgent:claude-opus-5-5@xhigh, codex:gpt-6.1-sol@xhigh
 ```
 
-Codex has no plugin hooks, so point Codex at the adapter once. If `${CODEX_HOME:-$HOME/.codex}/AGENTS.md` has no line naming `t3-adapter.md`, append this line to it: "pstack under T3 Code: before a pstack skill starts a subagent or another skill, read `references/t3-adapter.md` in the installed pstack plugin's `poteto-mode` skill." Claude needs no edit, because the plugin's session-start hook names the adapter.
+Codex runs the plugin's session-start hook only after the user trusts it, so point Codex at the adapter once anyway. If `${CODEX_HOME:-$HOME/.codex}/AGENTS.md` has no line naming `t3-adapter.md`, append this line to it: "pstack under T3 Code: before a pstack skill starts a subagent or another skill, read `references/t3-adapter.md` in the installed pstack plugin's `poteto-mode` skill." Tell a Codex user to trust the pstack hook once, by running `codex` in a terminal and approving it at the startup prompt or with `/hooks`. Claude needs no edit, because the plugin's session-start hook names the adapter.
 
 ### 6. Confirm
 
