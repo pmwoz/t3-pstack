@@ -9,9 +9,9 @@ Work on a new branch off `main`. Open one PR per concern and never merge it. The
 
 ## 1. See what moved
 
-Run `bun install` once, then `bun run watch`. It prints JSON with the upstream commits and the T3 contract commits since the pins in `pins.json`, plus T3 tools added or removed.
+Run `bun install` once, then `bun run watch`. It prints JSON with the upstream commits and the T3 contract commits since the pins in `pins.json`, the T3 contract files whose content changed (`t3.changedContractFiles`), plus T3 tools added or removed.
 
-If both commit lists are empty and no tool changed, reply with both pins and "nothing new", and stop.
+If both commit lists and `t3.changedContractFiles` are empty and no tool changed, reply with both pins and "nothing new", and stop.
 
 ## 2. Sync upstream
 
@@ -27,7 +27,7 @@ Run this when `upstream.commits` is not empty.
 
 ## 3. Update the T3 contract
 
-Run this when `t3.commits`, `toolsAdded`, `toolsRemoved`, or `newContractFiles` is not empty.
+Run this when `t3.commits`, `changedContractFiles`, `toolsAdded`, `toolsRemoved`, or `newContractFiles` is not empty.
 
 1. Run `bun run t3:pin` and read `git diff t3/contract`.
 2. Sort every change into one of three groups:

@@ -53,7 +53,7 @@ Upstream marks every skill but `setup-pstack` with `disable-model-invocation: tr
 
 | Command | What it does |
 |---|---|
-| `bun run watch` | Lists upstream commits and T3 contract commits since the pins, and T3 tools added or removed. Read-only. |
+| `bun run watch` | Lists upstream commits and T3 contract commits since the pins, T3 contract files changed or added, and T3 tools added or removed. Read-only. |
 | `bun run sync [ref]` | Three-way merges upstream at `ref` (default `main`) into `plugins/pstack`, then replaces `upstream/` and moves the pin. Exits 2 on conflicts. |
 | `bun run t3:pin [ref]` | Snapshots the T3 contract files at `ref` into `t3/contract/` and moves the pin. |
 | `bun run check` | The drift gate described above. CI runs it. |
