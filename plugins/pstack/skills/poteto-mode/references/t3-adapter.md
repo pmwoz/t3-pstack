@@ -36,7 +36,7 @@ Omit `runtimeMode` on every `delegate_task`, so the child inherits yours. A narr
 | `run_in_background: true`, waiting on the result | Async is the default. Completion wakes you. End the turn. Do not poll. Call `task_status` only when you need a result mid-turn. "The Task response body" is the task `summary`. |
 | Resume, message, or queue a follow-up | A new round is a new `delegate_task` with the full consolidated brief and a new `clientRequestId`. Never `t3_thread_send` a new round to `childThreadId`. Send to the child only for upstream's narrow case: state that lives in that child. A live child takes `mode: "queue"` or `"steer"`. A child whose task finished can still take a send, for example when its worktree holds uncommitted changes. When the send returns a `taskId`, the follow-up is its own task: record it, and its completion wakes you. |
 | Stop, hold, cancel nested subagents | `task_cancel` (it stops nested tasks and their PR watches). A hold is a `t3_thread_send` with `mode: "steer"` and the zero-writes order. |
-| Liveness, the Cursor dashboard, `children.tsv` IDs | `task_status` on the recorded `taskId`. Record `taskId` where upstream records subagent IDs, including each `taskId` a follow-up send returns. |
+| Liveness, the Cursor dashboard, recorded subagent IDs | `task_status` on the recorded `taskId`. Record `taskId` where upstream records subagent IDs, including each `taskId` a follow-up send returns. |
 | Eval blinding | Also blind the `title` and the worktree path, which the child can see. |
 
 `task_status` only finds tasks your own thread delegated. A grandchild's task belongs to its parent.
@@ -54,8 +54,9 @@ Upstream reads per-role models from "the `/setup-pstack` rule" (`~/.cursor/rules
    - A project can turn a provider off. `orchestrator_capabilities` still lists it, but `delegate_task` refuses it as "disabled for project". Then run the lane on another provider and say so in the reply.
    - A descriptor that already names a full `providerInstanceId` and catalog model id needs no lookup. Build the target from it directly. Call `orchestrator_capabilities` only for a short form or after `delegate_task` rejects a target. On Claude its result overflows the tool limit and is saved to a file. Query that file with `jq`, for example `jq -c '.providers[] | select(.providerInstanceId == "codex") | [.models[].id]' <file>`.
 3. `inherit-parent` or `auto` means: omit `target`. The lane runs on your own provider and model, and it still counts toward a panel's fan-out.
-4. With no sheet line, translate the skill's default slug: `claude-opus-5-5-<effort>` is `claude:opus@<effort>`, `gpt-5.6-sol-<effort>` is `codex:gpt-6.1-sol@<effort>`, and `grok-4.7-<effort>-fast` is the `grok` provider when the catalog lists one that can run child tasks, else `codex:gpt-6.1-sol@<effort>`.
+4. With no sheet line, translate the skill's default slug: `claude-opus-5-5-<effort>` is `claude:opus@<effort>`, `gpt-5.6-sol-<effort>` is `codex:gpt-6.1-sol@<effort>`, and `grok-4.7-<effort>-fast` or `grok-4.7-<effort>` is the `grok` provider when the catalog lists one that can run child tasks, else `codex:gpt-6.1-sol@<effort>`.
 5. "A model family" is the provider. A cross-family judge or reviewer runs on a different provider than the work it judges.
+6. "Match the model to the job" moves only the target's effort and speed. Effort steps along `low`, `medium`, `high`, `xhigh`, `max` and stops at `max`. Fast mode is the model option labeled "Fast Mode" (`fastMode: true` on Claude) or `serviceTier: "priority"` on Codex, and standard speed omits it. A model with no such option runs at standard speed. A descriptor names no speed, so verification on a sheet line runs at standard speed, and on a translated `-fast` default it runs in fast mode.
 
 ## Worktrees and parallel writers
 
@@ -96,7 +97,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child, and a child
 - **Project skill** (a generated verification skill, for example). Write `.claude/skills/<name>/` and symlink `.agents/skills/<name>` to it. Claude reads only `.claude/skills`, and Codex reads `.agents/skills`.
 - **User skill.** Write to `~/.claude/skills/` and `~/.agents/skills/`.
 - **`.cursor/rules`.** Read `CLAUDE.md` and `AGENTS.md`, plus any `.cursor/rules` the repo still has.
-- **"The current agent's store"** (orchestrate and multi-phase plans). Use `${PSTACK_STORE:-$HOME/.pstack/store}/<repo-name>/`. Export `ORCH_STORE` to it for `scripts/orch`. Never write it inside the checkout.
+- **"The current agent's store", "the root agent's store", "the agent store"** (orchestrate, autopilot-full, and multi-phase plans). Use `${PSTACK_STORE:-$HOME/.pstack/store}/<repo-name>/`. No system prompt names it, so each brief that writes there names the full path. Export `ORCH_STORE` to it for `scripts/orch`. Never write it inside the checkout.
 - **"MCPs from the Cursor environment" and `mcps/`.** Group your tools by MCP server name.
 
 ## Questions and the user
