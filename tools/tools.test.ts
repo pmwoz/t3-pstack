@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { appendFileSync, chmodSync, cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { conflictProblems, driftProblems } from "./check.ts";
@@ -145,26 +145,32 @@ test("check rejects a T3 contract that lacks a pinned file", () => {
   expect(r.stderr).toContain(`t3/contract/${path}: missing. Restore it with bun run t3:pin ${loadPins().t3.commit}.\n`);
 });
 
+const head = "b".repeat(40);
+const device = "apps/server/src/mcp/toolkits/device/tools.ts";
+const ghDir = tempDir();
+writeFileSync(
+  join(ghDir, "gh"),
+  [
+    "#!/usr/bin/env bun",
+    'const { readdirSync, readFileSync } = require("node:fs");',
+    'const api = process.argv.slice(2).find((a) => a.startsWith("repos/")) ?? "";',
+    'const file = api.split("/contents/")[1]?.split("?ref=")[0];',
+    `if (api.endsWith("/commits/main")) console.log('{"sha":"${head}"}');`,
+    'else if (api.includes("/commits/")) console.log(\'{"commit":{"committer":{"date":"2026-10-14T00:00:00Z"}}}\');',
+    'else if (api.includes("/commits?")) console.log("[]");',
+    'else if (file === "apps/server/src/mcp/toolkits")',
+    '  console.log(JSON.stringify(readdirSync(`${process.env.CONTRACT}/${file}`).map((name) => ({ name, type: "dir" }))));',
+    'else if (file === process.env.FAIL_502) { console.error("gh: HTTP 502: Bad Gateway"); process.exit(1); }',
+    'else if (file === process.env.ABSENT) { console.error("gh: Not Found (HTTP 404)"); process.exit(1); }',
+    'else process.stdout.write(readFileSync(`${process.env.CONTRACT}/${file}`));',
+  ].join("\n"),
+);
+chmodSync(join(ghDir, "gh"), 0o755);
+const fakeGh = (dir: string, script: string, env: Record<string, string>) =>
+  runTool(dir, script, { PATH: `${ghDir}:${process.env.PATH}`, CONTRACT: join(ROOT, "t3/contract"), ...env });
+
 describe("t3:pin", () => {
-  const head = "b".repeat(40);
-  const device = "apps/server/src/mcp/toolkits/device/tools.ts";
-  const ghDir = tempDir();
-  writeFileSync(
-    join(ghDir, "gh"),
-    [
-      "#!/usr/bin/env bun",
-      'const api = process.argv.slice(2).find((a) => a.startsWith("repos/")) ?? "";',
-      'const file = api.split("/contents/")[1]?.split("?ref=")[0];',
-      `if (api.endsWith("/commits/main")) console.log('{"sha":"${head}"}');`,
-      'else if (file === "apps/server/src/mcp/toolkits") console.log("[]");',
-      'else if (file === process.env.FAIL_502) { console.error("gh: HTTP 502: Bad Gateway"); process.exit(1); }',
-      'else if (file === process.env.ABSENT) { console.error("gh: Not Found (HTTP 404)"); process.exit(1); }',
-      'else process.stdout.write(require("node:fs").readFileSync(`${process.env.CONTRACT}/${file}`));',
-    ].join("\n"),
-  );
-  chmodSync(join(ghDir, "gh"), 0o755);
-  const pin = (dir: string, env: Record<string, string>) =>
-    runTool(dir, "t3.ts", { PATH: `${ghDir}:${process.env.PATH}`, CONTRACT: join(ROOT, "t3/contract"), ...env });
+  const pin = (dir: string, env: Record<string, string>) => fakeGh(dir, "t3.ts", env);
 
   test("keeps the contract and the pin when a download fails", () => {
     const dir = repoCopy();
@@ -190,6 +196,68 @@ describe("t3:pin", () => {
     expect(r.code).toBe(0);
     expect(git(dir, "status", "--porcelain")).toBe(" M pins.json");
     expect(JSON.parse(readFileSync(join(dir, "pins.json"), "utf8")).t3).toEqual({ ...loadPins().t3, commit: head });
+  });
+});
+
+describe("watch", () => {
+  const schema = "packages/contracts/src/orchestratorMcp.ts";
+  const pinned = loadPins().t3.commit.slice(0, 10);
+  function remote() {
+    const contract = tempDir();
+    cpSync(join(ROOT, "t3/contract"), contract, { recursive: true });
+    return contract;
+  }
+  function watch(dir: string, env: Record<string, string>) {
+    const r = fakeGh(dir, "watch.ts", env);
+    expect(r.stderr).toBe("");
+    expect(git(dir, "status", "--porcelain")).toBe("");
+    return JSON.parse(r.stdout).t3;
+  }
+
+  test("reports a schema change that no commit listing shows", () => {
+    const contract = remote();
+    appendFileSync(join(contract, schema), "\nexport const SchemaOnlyChange = true;\n");
+    expect(watch(repoCopy(), { CONTRACT: contract })).toEqual({
+      pinned,
+      head: "bbbbbbbbbb",
+      commits: [],
+      newContractFiles: [],
+      changedContractFiles: [schema],
+      toolsAdded: [],
+      toolsRemoved: [],
+    });
+  });
+
+  test("reports no change when T3 moved without touching the contract", () => {
+    expect(watch(repoCopy(), {}).changedContractFiles).toEqual([]);
+  });
+
+  test("reports a deleted toolkit and its tools", () => {
+    const t3 = watch(repoCopy(), { ABSENT: device });
+    expect({ changed: t3.changedContractFiles, removed: t3.toolsRemoved.sort() }).toEqual({
+      changed: [device],
+      removed: ["device_close", "device_list", "device_open", "device_screenshot"],
+    });
+  });
+
+  test("reports a new toolkit as new, not changed", () => {
+    const contract = remote();
+    mkdirSync(join(contract, "apps/server/src/mcp/toolkits/fresh"));
+    writeFileSync(join(contract, "apps/server/src/mcp/toolkits/fresh/tools.ts"), 'Tool.make("fresh_tool", {});\n');
+    const t3 = watch(repoCopy(), { CONTRACT: contract });
+    expect({ new: t3.newContractFiles, changed: t3.changedContractFiles, added: t3.toolsAdded }).toEqual({
+      new: ["apps/server/src/mcp/toolkits/fresh/tools.ts"],
+      changed: [],
+      added: ["fresh_tool"],
+    });
+  });
+
+  test("fails without writing when a download fails", () => {
+    const dir = repoCopy();
+    const r = fakeGh(dir, "watch.ts", { FAIL_502: schema });
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain(`cannot fetch ${schema} at bbbbbbbbbb: gh: HTTP 502: Bad Gateway`);
+    expect(git(dir, "status", "--porcelain")).toBe("");
   });
 });
 

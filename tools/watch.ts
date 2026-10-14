@@ -27,15 +27,22 @@ if (import.meta.main) {
 
   const t3Head = resolveRef(pins.t3.repo, "main");
   const t3Commits = t3Head === pins.t3.commit ? [] : commitsTouching(pins.t3.repo, pins.t3.commit, t3Head, pins.t3.paths);
-  const pinnedTools = t3ToolNames(readTree(join(T3_DIR, "contract")));
+  const pinnedContract = readTree(join(T3_DIR, "contract"));
   const headPaths = contractPaths(pins, t3Head);
-  const headContract: Tree = new Map();
-  if (t3Commits.length || headPaths.length !== pins.t3.paths.length)
+  const newContractFiles = headPaths.filter((p) => !pins.t3.paths.includes(p));
+  const refresh = t3Head !== pins.t3.commit || newContractFiles.length > 0;
+  const headContract: Tree = refresh ? new Map() : pinnedContract;
+  if (refresh)
     for (const path of headPaths) {
       const content = fileAt(pins.t3.repo, path, t3Head);
       if (content) headContract.set(path, content);
     }
-  const headTools = headContract.size ? t3ToolNames(headContract) : pinnedTools;
+  const changedContractFiles = headPaths.filter((p) => {
+    const pinned = pinnedContract.get(p);
+    return pinned !== undefined && !headContract.get(p)?.equals(pinned);
+  });
+  const pinnedTools = t3ToolNames(pinnedContract);
+  const headTools = t3ToolNames(headContract);
 
   console.log(
     JSON.stringify(
@@ -45,7 +52,8 @@ if (import.meta.main) {
           pinned: pins.t3.commit.slice(0, 10),
           head: t3Head.slice(0, 10),
           commits: t3Commits,
-          newContractFiles: headPaths.filter((p) => !pins.t3.paths.includes(p)),
+          newContractFiles,
+          changedContractFiles,
           toolsAdded: [...headTools].filter((t) => !pinnedTools.has(t)),
           toolsRemoved: [...pinnedTools].filter((t) => !headTools.has(t)),
         },

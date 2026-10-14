@@ -38,7 +38,12 @@
       "apps/server/src/mcp/toolkits/worktree/tools.ts",
       "apps/server/src/provider/Drivers/ClaudeSkillDispatch.ts",
       "apps/server/src/provider/Drivers/ClaudeSkills.ts",
+      "packages/contracts/src/device.ts",
       "packages/contracts/src/orchestratorMcp.ts",
+      "packages/contracts/src/preview.ts",
+      "packages/contracts/src/previewAutomation.ts",
+      "packages/contracts/src/threadMetadataMcp.ts",
+      "packages/contracts/src/worktreeMcp.ts",
       "packages/provider-core/src/server/orchestrationInstructions.ts",
       "packages/provider-core/src/server/runtimeInstructions.ts",
       "packages/shared/src/htmlRender.ts"
