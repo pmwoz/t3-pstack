@@ -42,12 +42,12 @@ codex plugin marketplace upgrade t3-pstack
 The plugin in `plugins/pstack` is a function of three inputs:
 
 1. `upstream/` holds a verbatim snapshot of the upstream files the plugin ships, at the commit pinned in [`pins.json`](pins.json).
-2. A mechanical transform in [`tools/lib.ts`](tools/lib.ts) rewrites each skill's frontmatter `name` to its directory name. Codex names a skill by that field, and upstream's `poteto-mode` says `Poteto Mode`.
+2. A mechanical transform in [`tools/lib.ts`](tools/lib.ts) rewrites each skill's frontmatter `name` to its directory name. Codex names a skill by that field, and upstream's `poteto-mode` says `Poteto Mode`. The transform also adds `agents/openai.yaml` with `allow_implicit_invocation: false` next to each skill upstream marks `disable-model-invocation: true`. Codex ignores that flag and reads the sidecar instead.
 3. Drift: every other difference, declared with a reason in `drift.json`.
 
 `bun run check` rebuilds the expected tree from the first two and fails on any difference that `drift.json` does not declare. It also fails on a stale drift entry, a broken relative link, a lost executable bit, mismatched manifest versions, and a T3 tool name in this port's text that the pinned T3 contract does not define.
 
-Upstream marks every skill but `setup-pstack` with `disable-model-invocation: true`, so they start only when typed. The port keeps that flag. Claude refuses a Skill tool call to such a skill, so pstack skills start each other by reading `SKILL.md` by path, as they do in Cursor. A Claude session-start hook gives the agent the plugin path. In a test with the flag and that rule, Claude loaded the `how` skill by path in 3 of 3 runs.
+Upstream marks every skill with `disable-model-invocation: true` except `setup-pstack`, `deslop`, `control-cli`, and `control-ui`, so the rest start only when typed. The port keeps that flag. On Codex the sidecar gives the same typed-only behavior, and `$pstack:<name>` still starts the skill. Claude refuses a Skill tool call to such a skill, so pstack skills start each other by reading `SKILL.md` by path, as they do in Cursor. A Claude session-start hook gives the agent the plugin path. In a test with the flag and that rule, Claude loaded the `how` skill by path in 3 of 3 runs.
 
 ## Maintain
 

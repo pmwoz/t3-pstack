@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { appendFileSync, chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { conflictProblems, driftProblems } from "./check.ts";
-import { ROOT, loadPins, run, t3ToolNames, transform, type Tree } from "./lib.ts";
+import { ROOT, expectedTree, loadPins, run, t3ToolNames, transform, type Tree } from "./lib.ts";
 import { decide, gitMerge3 } from "./sync.ts";
 
 const b = (s: string) => Buffer.from(s);
@@ -46,6 +46,56 @@ describe("transform", () => {
 
   test("leaves files other than SKILL.md alone", () => {
     expect(transform("skills/poteto-mode/playbooks/feature.md", b(upstream)).toString()).toBe(upstream);
+  });
+});
+
+describe("expectedTree", () => {
+  const typedOnly = (name: string) => `---\nname: ${name}\ndescription: x\ndisable-model-invocation: true\n---\n\n# Body\n`;
+  const sidecar = "policy:\n  allow_implicit_invocation: false\n";
+  function expected(skills: Record<string, string>) {
+    const upstream = tempDir();
+    for (const [path, content] of Object.entries(skills)) {
+      mkdirSync(dirname(join(upstream, "pstack/skills", path)), { recursive: true });
+      writeFileSync(join(upstream, "pstack/skills", path), content);
+    }
+    const pins = loadPins();
+    const tree = expectedTree({ ...pins, upstream: { ...pins.upstream, map: { "pstack/skills": "skills" }, exclude: [] } }, upstream);
+    return Object.fromEntries([...tree].map(([path, content]) => [path, content.toString()]));
+  }
+
+  test("adds a Codex sidecar next to a skill upstream marks typed-only", () => {
+    expect(expected({ "how/SKILL.md": typedOnly("how") })).toEqual({
+      "skills/how/SKILL.md": typedOnly("how"),
+      "skills/how/agents/openai.yaml": sidecar,
+    });
+  });
+
+  test("adds no sidecar to a skill the model may start", () => {
+    const open = "---\nname: deslop\ndescription: x\n---\n\n# Body\n";
+    expect(expected({ "how/SKILL.md": typedOnly("how"), "deslop/SKILL.md": open })).toEqual({
+      "skills/how/SKILL.md": typedOnly("how"),
+      "skills/how/agents/openai.yaml": sidecar,
+      "skills/deslop/SKILL.md": open,
+    });
+  });
+
+  test("ignores the flag outside the frontmatter", () => {
+    const quoted = "---\nname: automate-me\ndescription: x\n---\n\nSet this in the new skill:\n\ndisable-model-invocation: true\n";
+    expect(expected({ "how/SKILL.md": typedOnly("how"), "automate-me/SKILL.md": quoted })).toEqual({
+      "skills/how/SKILL.md": typedOnly("how"),
+      "skills/how/agents/openai.yaml": sidecar,
+      "skills/automate-me/SKILL.md": quoted,
+    });
+  });
+
+  test("keeps a sidecar upstream ships", () => {
+    const shipped = "interface:\n  display_name: Why\npolicy:\n  allow_implicit_invocation: false\n";
+    expect(expected({ "how/SKILL.md": typedOnly("how"), "why/SKILL.md": typedOnly("why"), "why/agents/openai.yaml": shipped })).toEqual({
+      "skills/how/SKILL.md": typedOnly("how"),
+      "skills/how/agents/openai.yaml": sidecar,
+      "skills/why/SKILL.md": typedOnly("why"),
+      "skills/why/agents/openai.yaml": shipped,
+    });
   });
 });
 
@@ -279,6 +329,8 @@ describe("sync", () => {
   test("merges upstream additions, deletions, and edits, and check flags the conflict left behind", () => {
     const { dir, upstream } = syncFixture();
     writeFileSync(join(upstream, "pstack/skills/how/references/new.md"), "New upstream file.\n");
+    mkdirSync(join(upstream, "pstack/skills/fresh"));
+    writeFileSync(join(upstream, "pstack/skills/fresh/SKILL.md"), "---\nname: fresh\ndescription: x\ndisable-model-invocation: true\n---\n");
     rmSync(join(upstream, "pstack/skills/how/references/explorer-prompt.md"));
     writeFileSync(join(upstream, "pstack/skills/poteto-help/SKILL.md"), "Rewritten upstream.\n");
     writeFileSync(join(upstream, "pstack/.cursor-plugin/plugin.json"), '{"name":"pstack","version":"9.9.9"}\n');
@@ -287,14 +339,22 @@ describe("sync", () => {
     const r = runTool(dir, "sync.ts");
     expect(r.code).toBe(2);
     const { updated, merged, conflicts, version } = JSON.parse(r.stdout);
-    expect({ updated, merged, conflicts, version }).toEqual({
-      updated: ["skills/how/references/explorer-prompt.md", "skills/how/references/new.md"],
+    expect({ updated: updated.sort(), merged, conflicts, version }).toEqual({
+      updated: [
+        "skills/fresh/SKILL.md",
+        "skills/fresh/agents/openai.yaml",
+        "skills/how/references/explorer-prompt.md",
+        "skills/how/references/new.md",
+        "skills/poteto-help/agents/openai.yaml",
+      ],
       merged: [],
       conflicts: ["skills/poteto-help/SKILL.md: overlapping edits"],
       version: "9.9.9",
     });
     expect(readFileSync(join(dir, "plugins/pstack/skills/how/references/new.md"), "utf8")).toBe("New upstream file.\n");
     expect(existsSync(join(dir, "plugins/pstack/skills/how/references/explorer-prompt.md"))).toBe(false);
+    expect(readFileSync(join(dir, "plugins/pstack/skills/fresh/agents/openai.yaml"), "utf8")).toBe("policy:\n  allow_implicit_invocation: false\n");
+    expect(existsSync(join(dir, "plugins/pstack/skills/poteto-help/agents/openai.yaml"))).toBe(false);
     expect(JSON.parse(readFileSync(join(dir, "pins.json"), "utf8")).upstream.commit).toBe(git(upstream, "rev-parse", "HEAD"));
 
     const help = readFileSync(join(dir, "plugins/pstack/skills/poteto-help/SKILL.md"), "utf8").split("\n");
