@@ -70,8 +70,8 @@ export function toolReferenceProblems(expected: Tree, tree: Tree, drift: Drift, 
 export function conflictProblems(expected: Tree, tree: Tree): string[] {
   const problems: string[] = [];
   for (const [path, content] of tree) {
-    const upstream = `\n${expected.get(path)?.toString("utf8") ?? ""}\n`;
-    const lines = content.toString("utf8").split("\n");
+    const upstream = `\n${(expected.get(path)?.toString("utf8") ?? "").replace(/\r\n/g, "\n")}\n`;
+    const lines = content.toString("utf8").replace(/\r\n/g, "\n").split("\n");
     const open: Array<{ start: number; separated: boolean }> = [];
     for (const [i, line] of lines.entries()) {
       if (/^<{7}( |$)/.test(line)) open.push({ start: i, separated: false });

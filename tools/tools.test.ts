@@ -104,6 +104,14 @@ describe("driftProblems", () => {
 });
 
 describe("conflictProblems", () => {
+  test("flags the conflict git produces from CRLF text", () => {
+    const conflict = gitMerge3(b("ours\r\n"), b("base\r\n"), b("theirs\r\n"));
+    expect(conflict.clean).toBe(false);
+    expect(conflictProblems(new Map(), new Map([["skills/a/SKILL.md", conflict.content]]))).toEqual([
+      "skills/a/SKILL.md:1: unresolved merge conflict.",
+    ]);
+  });
+
   test("flags an unresolved block at the line it starts", () => {
     const tree: Tree = new Map([
       ["skills/a/SKILL.md", b("intro\n<<<<<<< t3-pstack\nours\n||||||| upstream-old\nbase\n=======\ntheirs\n>>>>>>> upstream-new\n")],
