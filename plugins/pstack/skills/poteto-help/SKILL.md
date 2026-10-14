@@ -48,7 +48,7 @@ This is t3-pstack, the T3 Code port of Cursor's pstack. The skills are Cursor's,
 
 `/poteto-mode` matches the task to a playbook, copies the playbook's steps into the todo list, and runs the other skills as the steps need them. A step it skips stays in the list as `skip: <reason>`. A good prompt states the goal and how to tell it's done. It doesn't list skills, because a hand-written sequence tends to drop or reorder steps the playbook would keep. Read [`references/prompting.md`](references/prompting.md) before you help word one. [Guide page 2](../../docs/guide/02-poteto-mode.md) has examples.
 
-T3 Code has no Custom Modes. `/poteto-mode` attaches to the message that starts it and fades as the chat moves on, so start each new task with it. On Claude, the session-start context also reminds the agent to apply it when a task needs rigor.
+T3 Code has no Custom Modes. `/poteto-mode` attaches to the message that starts it and fades as the chat moves on, so start each new task with it. The session-start context also reminds the agent to apply it when a task needs rigor. On Codex, that context arrives only after the user trusts the pstack hook.
 
 Mid-chat, "new task" makes the mode match a fresh playbook. `/poteto-mode` already uses `poteto-agent` for the subagents its playbook steps spawn. To get the same style from a subagent of your own, delegate a task whose brief starts by reading `agents/poteto-agent.md`.
 

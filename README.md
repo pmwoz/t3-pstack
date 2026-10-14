@@ -2,7 +2,7 @@
 
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) is Lauren Tan's skill pack for rigorous agent work: `poteto-mode`, its playbooks, the principles, and workflow skills such as `architect`, `arena`, and `interrogate`. It is written for Cursor. t3-pstack ships it for [T3 Code](https://github.com/pingdotgg/t3code), for both the Claude and the Codex provider, and tracks upstream closely.
 
-- The skills stay as upstream wrote them. Nine files differ, and each one has its reason in [`drift.json`](drift.json).
+- The skills stay as upstream wrote them. Ten files differ, and each one has its reason in [`drift.json`](drift.json).
 - One file, [`t3-adapter.md`](plugins/pstack/skills/poteto-mode/references/t3-adapter.md), maps Cursor mechanics to T3. Subagents become `delegate_task` lanes, so a panel can mix Claude and Codex models. `/loop` becomes a PR watch or a scheduled task. Cloud agents become local worktrees.
 - Tooling checks the drift, merges new upstream commits, and reports changes to T3's orchestration contract.
 
@@ -19,6 +19,8 @@ claude plugin install pstack@t3-pstack
 codex plugin marketplace add pmwoz/t3-pstack
 codex plugin add pstack@t3-pstack
 ```
+
+Codex runs pstack's session-start hook only after you trust it, so run `codex` once in a terminal and trust the hook at the startup prompt or with `/hooks`. Until then, the `AGENTS.md` line that `setup-pstack` writes points Codex at the adapter.
 
 Then run `/pstack:setup-pstack` (Claude) or `$pstack:setup-pstack` (Codex). It reads the models T3 offers, asks for a reasoning budget, and writes `~/.agents/pstack-models.md`, one model per role.
 
@@ -47,7 +49,7 @@ The plugin in `plugins/pstack` is a function of three inputs:
 
 `bun run check` rebuilds the expected tree from the first two and fails on any difference that `drift.json` does not declare. It also fails on a stale drift entry, a broken relative link, a lost executable bit, mismatched manifest versions, and a T3 tool name in this port's text that the pinned T3 contract does not define.
 
-Upstream marks every skill with `disable-model-invocation: true` except `setup-pstack`, `deslop`, `control-cli`, and `control-ui`, so the rest start only when typed. The port keeps that flag. On Codex the sidecar gives the same typed-only behavior, and `$pstack:<name>` still starts the skill. Claude refuses a Skill tool call to such a skill, so pstack skills start each other by reading `SKILL.md` by path, as they do in Cursor. A Claude session-start hook gives the agent the plugin path. In a test with the flag and that rule, Claude loaded the `how` skill by path in 3 of 3 runs.
+Upstream marks every skill with `disable-model-invocation: true` except `setup-pstack`, `deslop`, `control-cli`, and `control-ui`, so the rest start only when typed. The port keeps that flag. On Codex the sidecar gives the same typed-only behavior, and `$pstack:<name>` still starts the skill. Claude refuses a Skill tool call to such a skill, so pstack skills start each other by reading `SKILL.md` by path, as they do in Cursor. A session-start hook gives the agent the plugin path on Claude, and on Codex once you trust the hook. In a test with the flag and that rule, Claude loaded the `how` skill by path in 3 of 3 runs.
 
 ## Maintain
 

@@ -6,7 +6,7 @@ T3 Code's own injected instructions win over this file if they ever disagree. Re
 
 ## Paths
 
-`<pstack-root>` is the installed plugin directory: the directory that holds `skills/`, `agents/`, and `docs/`. It is two levels above the base directory of any pstack skill you are running. On Claude, the session-start context names it.
+`<pstack-root>` is the installed plugin directory: the directory that holds `skills/`, `agents/`, and `docs/`. It is two levels above the base directory of any pstack skill you are running. The session-start context names it. On Codex, that context arrives only after the user trusts the pstack hook.
 
 A `poteto-agent` given no path looks for poteto-mode under `~/.claude/plugins/cache/t3-pstack/` (Claude) or `${CODEX_HOME:-$HOME/.codex}/plugins/cache/t3-pstack/` (Codex), not `~/.cursor/plugins/`. It compares the `version` in `.claude-plugin/plugin.json` or `.codex-plugin/plugin.json`. Do not search all of `plugins/`, because other pstack ports install there with higher versions.
 

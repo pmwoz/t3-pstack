@@ -3,7 +3,7 @@ import { appendFileSync, chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { conflictProblems, driftProblems } from "./check.ts";
-import { ROOT, expectedTree, loadPins, run, t3ToolNames, transform, type Tree } from "./lib.ts";
+import { PLUGIN_DIR, ROOT, expectedTree, loadPins, run, t3ToolNames, transform, type Tree } from "./lib.ts";
 import { decide, gitMerge3 } from "./sync.ts";
 
 const b = (s: string) => Buffer.from(s);
@@ -392,4 +392,53 @@ test("t3ToolNames resolves tool names held in constants", () => {
     ["packages/shared/src/htmlRender.ts", b('export const HTML_RENDER_TOOL_NAME = "html_render";')],
   ]);
   expect([...t3ToolNames(contract)].sort()).toEqual(["html_render", "preview_open"]);
+});
+
+describe("session-start hook", () => {
+  const readPluginJson = (path: string) => JSON.parse(readFileSync(join(PLUGIN_DIR, path), "utf8"));
+  const sessionStart = (hooksPath: string) => {
+    const [group] = readPluginJson(hooksPath).hooks.SessionStart;
+    return { matcher: group.matcher, command: group.hooks[0].command };
+  };
+  // The provider replaces each root key in the command with the plugin directory, so the real script runs. The script
+  // prints the root it reads from the env, which is fixed here.
+  function runHook(command: string, rootKeys: string[]) {
+    const line = rootKeys.reduce((text, key) => text.replaceAll(`\${${key}}`, PLUGIN_DIR), command);
+    const env = { ...process.env, ...Object.fromEntries(rootKeys.map((key) => [key, "/opt/pstack"])) };
+    const proc = Bun.spawnSync(["sh", "-c", line], { env, stdout: "pipe", stderr: "pipe" });
+    expect(proc.stderr.toString()).toBe("");
+    return JSON.parse(proc.stdout.toString());
+  }
+
+  test("gives Claude the plugin path and the Skill and Read tool wording", () => {
+    expect(runHook(sessionStart("hooks/hooks.json").command, ["CLAUDE_PLUGIN_ROOT"])).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "SessionStart",
+        additionalContext: [
+          "pstack for T3 Code is installed at /opt/pstack.",
+          "New task? Playbook match or rigor needed -> apply /poteto-mode. Casual turn or user opts out -> don't.",
+          "pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read /opt/pstack/skills/<name>/SKILL.md in full and follow it. The Skill tool refuses them. Read each file with its own Read call. In zsh, an unquoted separator such as echo ===== aborts the rest of a chained shell line.",
+          "Before a pstack skill spawns a subagent or names a Cursor feature, read /opt/pstack/skills/poteto-mode/references/t3-adapter.md.",
+        ].join("\n"),
+      },
+    });
+  });
+
+  test("gives Codex the plugin path and the Codex wording from the hook file its manifest names", () => {
+    // Codex reads hooks/hooks.json when the manifest names no hook file.
+    const { matcher, command } = sessionStart(readPluginJson(".codex-plugin/plugin.json").hooks ?? "./hooks/hooks.json");
+    expect(matcher).toBe("startup|clear|compact");
+    expect(command).toEndWith(" codex");
+    expect(runHook(command, ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"])).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "SessionStart",
+        additionalContext: [
+          "pstack for T3 Code is installed at /opt/pstack.",
+          "New task? Playbook match or rigor needed -> apply poteto-mode. Casual turn or user opts out -> don't.",
+          "pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read /opt/pstack/skills/<name>/SKILL.md in full and follow it. Codex keeps them out of your skill list, so read the file instead of waiting for a skill match. Read each file with its own shell command. In zsh, an unquoted separator such as echo ===== aborts the rest of a chained shell line.",
+          "Before a pstack skill spawns a subagent or names a Cursor feature, read /opt/pstack/skills/poteto-mode/references/t3-adapter.md.",
+        ].join("\n"),
+      },
+    });
+  });
 });
