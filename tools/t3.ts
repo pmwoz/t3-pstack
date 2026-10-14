@@ -8,7 +8,6 @@ export const gh = (path: string) => JSON.parse(run(["gh", "api", path]).stdout.t
 
 export const resolveRef = (repo: string, ref: string): string => gh(`repos/${repo}/commits/${ref}`).sha;
 
-/** A file at a commit, or undefined when GitHub answers 404. Any other failure throws. */
 export const fileAt = (repo: string, path: string, sha: string): Buffer | undefined => {
   const r = run(["gh", "api", "-H", "Accept: application/vnd.github.raw", `repos/${repo}/contents/${path}?ref=${sha}`], { allowFail: true });
   if (r.code === 0) return r.stdout;
@@ -34,6 +33,9 @@ if (import.meta.main) {
     const content = fileAt(pins.t3.repo, path, sha);
     if (content) contract.set(path, content);
   }
+  const missing = paths.filter((p) => !contract.has(p));
+  if (missing.length)
+    throw new Error(`T3 ${sha.slice(0, 10)} has no ${missing.join(", ")}. Point each at its new path in pins.json t3.paths, or remove it there.`);
   rmSync(join(T3_DIR, "contract"), { recursive: true, force: true });
   for (const [path, content] of contract) {
     const abs = join(T3_DIR, "contract", path);
@@ -41,7 +43,7 @@ if (import.meta.main) {
     writeFileSync(abs, content);
   }
   pins.t3.commit = sha;
-  pins.t3.paths = [...contract.keys()];
+  pins.t3.paths = paths;
   savePins(pins);
-  console.log(JSON.stringify({ commit: sha, files: contract.size, missing: paths.filter((p) => !contract.has(p)) }, null, 2));
+  console.log(JSON.stringify({ commit: sha, files: contract.size, missing }, null, 2));
 }

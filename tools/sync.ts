@@ -68,7 +68,6 @@ if (import.meta.main) {
     process.exit(0);
   }
 
-  // Validate upstream and decide every path before the first write, so bad upstream input leaves the repo as it was.
   const sources = snapshotSources(pins);
   const listed = run(["git", "ls-tree", "--name-only", sha, "--", ...sources], { cwd: cache }).stdout.toString().split("\n");
   const missing = sources.filter((s) => !listed.includes(s));

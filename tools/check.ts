@@ -67,23 +67,19 @@ export function toolReferenceProblems(expected: Tree, tree: Tree, drift: Drift, 
   return problems;
 }
 
-/** Unresolved git conflict blocks. A start marker that upstream's own text holds is a quoted example. */
 export function conflictProblems(expected: Tree, tree: Tree): string[] {
   const problems: string[] = [];
   for (const [path, content] of tree) {
-    const upstreamLines = new Set(expected.get(path)?.toString("utf8").split("\n"));
-    let start = -1;
-    let separated = false;
-    for (const [i, line] of content.toString("utf8").split("\n").entries()) {
-      if (/^<{7}( |$)/.test(line) && !upstreamLines.has(line)) {
-        start = i;
-        separated = false;
-      } else if (line === "=======") {
-        separated = start >= 0;
-      } else if (/^>{7}( |$)/.test(line)) {
-        if (separated) problems.push(`${path}:${start + 1}: unresolved merge conflict.`);
-        start = -1;
-        separated = false;
+    const upstream = `\n${expected.get(path)?.toString("utf8") ?? ""}\n`;
+    const lines = content.toString("utf8").split("\n");
+    const open: Array<{ start: number; separated: boolean }> = [];
+    for (const [i, line] of lines.entries()) {
+      if (/^<{7}( |$)/.test(line)) open.push({ start: i, separated: false });
+      else if (line === "=======" && open.length) open.at(-1)!.separated = true;
+      else if (/^>{7}( |$)/.test(line)) {
+        const block = open.pop();
+        if (block?.separated && !upstream.includes(`\n${lines.slice(block.start, i + 1).join("\n")}\n`))
+          problems.push(`${path}:${block.start + 1}: unresolved merge conflict.`);
       }
     }
   }

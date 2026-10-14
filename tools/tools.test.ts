@@ -117,6 +117,15 @@ describe("conflictProblems", () => {
     const ours = `Title\n=======\n\n<<<<<<<<<<\nWrite \`<<<<<<< ours\` and \`>>>>>>> theirs\` around a conflict.\n${example}Our line.\n`;
     expect(conflictProblems(expected, new Map([["skills/a/SKILL.md", b(ours)]]))).toEqual([]);
   });
+
+  test("flags a block that only shares its start line with upstream's example, and a conflict around that example", () => {
+    const example = "<<<<<<< HEAD\nmine\n=======\nyours\n>>>>>>> topic\n";
+    const expected: Tree = new Map([["skills/a/SKILL.md", b(example)]]);
+    const changed = "<<<<<<< HEAD\nactual ours\n=======\nactual theirs\n>>>>>>> topic\n";
+    const around = `intro\n<<<<<<< t3-pstack\n${example}=======\ntheirs\n>>>>>>> upstream-new\n`;
+    expect(conflictProblems(expected, new Map([["skills/a/SKILL.md", b(changed)]]))).toEqual(["skills/a/SKILL.md:1: unresolved merge conflict."]);
+    expect(conflictProblems(expected, new Map([["skills/a/SKILL.md", b(around)]]))).toEqual(["skills/a/SKILL.md:2: unresolved merge conflict."]);
+  });
 });
 
 test("check rejects a T3 contract that lacks a pinned file", () => {
@@ -159,17 +168,20 @@ describe("t3:pin", () => {
     expect(git(dir, "status", "--porcelain")).toBe("");
   });
 
-  test("drops a file T3 no longer has", () => {
+  test("keeps the contract and the pin when T3 no longer has a pinned file", () => {
     const dir = repoCopy();
     const r = pin(dir, { ABSENT: device });
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain(`T3 bbbbbbbbbb has no ${device}. Point each at its new path in pins.json t3.paths, or remove it there.`);
+    expect(git(dir, "status", "--porcelain")).toBe("");
+  });
+
+  test("moves the pin and keeps every pinned path", () => {
+    const dir = repoCopy();
+    const r = pin(dir, {});
     expect(r.code).toBe(0);
-    expect(JSON.parse(r.stdout).missing).toEqual([device]);
-    expect(git(dir, "status", "--porcelain")).toBe(` M pins.json\n D t3/contract/${device}`);
-    expect(JSON.parse(readFileSync(join(dir, "pins.json"), "utf8")).t3).toEqual({
-      ...loadPins().t3,
-      commit: head,
-      paths: loadPins().t3.paths.filter((p) => p !== device),
-    });
+    expect(git(dir, "status", "--porcelain")).toBe(" M pins.json");
+    expect(JSON.parse(readFileSync(join(dir, "pins.json"), "utf8")).t3).toEqual({ ...loadPins().t3, commit: head });
   });
 });
 
