@@ -49,12 +49,15 @@ export function readTree(dir: string, prefix = ""): Tree {
   return tree;
 }
 
+const SKILL_FILE = /^skills\/([^/]+)\/SKILL\.md$/;
+const FRONTMATTER = /^---\n([\s\S]*?)\n---\n/;
+
 /** The mechanical rewrite applied to every upstream file before drift. */
 export function transform(path: string, content: Buffer): Buffer {
-  const skill = /^skills\/([^/]+)\/SKILL\.md$/.exec(path)?.[1];
+  const skill = SKILL_FILE.exec(path)?.[1];
   if (!skill) return content;
   const text = content.toString("utf8");
-  const fm = /^---\n([\s\S]*?)\n---\n/.exec(text);
+  const fm = FRONTMATTER.exec(text);
   if (!fm) return content;
   // Codex names a skill by this field, Claude by its directory. Upstream poteto-mode says "Poteto Mode".
   const lines = fm[1]!.split("\n").map((line) => (line.startsWith("name:") ? `name: ${skill}` : line));
@@ -62,9 +65,9 @@ export function transform(path: string, content: Buffer): Buffer {
 }
 
 export function frontmatterProblems(path: string, content: Buffer): string[] {
-  const skill = /^skills\/([^/]+)\/SKILL\.md$/.exec(path)?.[1];
+  const skill = SKILL_FILE.exec(path)?.[1];
   if (!skill) return [];
-  const fm = /^---\n([\s\S]*?)\n---\n/.exec(content.toString("utf8"))?.[1];
+  const fm = FRONTMATTER.exec(content.toString("utf8"))?.[1];
   if (fm === undefined) return [`${path}: no frontmatter.`];
   const problems: string[] = [];
   const name = /^name:\s*(.+)$/m.exec(fm)?.[1]?.trim();
@@ -88,9 +91,21 @@ export function mappedFiles(pins: Pins, upstreamRoot: string): Array<{ dst: stri
   return files;
 }
 
+// Codex ignores disable-model-invocation and keeps a skill out of implicit use only through this file.
+const CODEX_TYPED_ONLY = Buffer.from("policy:\n  allow_implicit_invocation: false\n");
+
 /** What the plugin tree would be with zero drift, built from an upstream snapshot. */
-export const expectedTree = (pins: Pins, upstreamRoot: string): Tree =>
-  new Map(mappedFiles(pins, upstreamRoot).map(({ dst, abs }) => [dst, transform(dst, readFileSync(abs))]));
+export function expectedTree(pins: Pins, upstreamRoot: string): Tree {
+  const tree: Tree = new Map(mappedFiles(pins, upstreamRoot).map(({ dst, abs }) => [dst, transform(dst, readFileSync(abs))]));
+  for (const [path, content] of [...tree]) {
+    const skill = SKILL_FILE.exec(path)?.[1];
+    if (!skill) continue;
+    const fm = FRONTMATTER.exec(content.toString("utf8"))?.[1];
+    const sidecar = `skills/${skill}/agents/openai.yaml`;
+    if (fm && /^disable-model-invocation: true$/m.test(fm) && !tree.has(sidecar)) tree.set(sidecar, CODEX_TYPED_ONLY);
+  }
+  return tree;
+}
 
 export const isExecutable = (abs: string) => (statSync(abs).mode & 0o111) !== 0;
 
