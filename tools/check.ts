@@ -67,6 +67,29 @@ export function toolReferenceProblems(expected: Tree, tree: Tree, drift: Drift, 
   return problems;
 }
 
+/** Unresolved git conflict blocks. A start marker that upstream's own text holds is a quoted example. */
+export function conflictProblems(expected: Tree, tree: Tree): string[] {
+  const problems: string[] = [];
+  for (const [path, content] of tree) {
+    const upstreamLines = new Set(expected.get(path)?.toString("utf8").split("\n"));
+    let start = -1;
+    let separated = false;
+    for (const [i, line] of content.toString("utf8").split("\n").entries()) {
+      if (/^<{7}( |$)/.test(line) && !upstreamLines.has(line)) {
+        start = i;
+        separated = false;
+      } else if (line === "=======") {
+        separated = start >= 0;
+      } else if (/^>{7}( |$)/.test(line)) {
+        if (separated) problems.push(`${path}:${start + 1}: unresolved merge conflict.`);
+        start = -1;
+        separated = false;
+      }
+    }
+  }
+  return problems;
+}
+
 function modeProblems(pins: ReturnType<typeof loadPins>): string[] {
   return mappedFiles(pins, UPSTREAM_DIR).flatMap(({ dst, abs }) => {
     const plugin = join(PLUGIN_DIR, dst);
@@ -93,11 +116,14 @@ if (import.meta.main) {
   const drift = loadDrift();
   const actual = readTree(PLUGIN_DIR);
   const expected = expectedTree(pins, UPSTREAM_DIR);
+  const contract = readTree(join(T3_DIR, "contract"));
   const problems = [
     ...driftProblems(expected, actual, drift),
+    ...conflictProblems(expected, actual),
     ...[...actual].flatMap(([path, content]) => frontmatterProblems(path, content)),
     ...linkProblems(actual),
-    ...toolReferenceProblems(expected, actual, drift, t3ToolNames(readTree(join(T3_DIR, "contract")))),
+    ...pins.t3.paths.filter((p) => !contract.has(p)).map((p) => `t3/contract/${p}: missing. Restore it with bun run t3:pin ${pins.t3.commit}.`),
+    ...toolReferenceProblems(expected, actual, drift, t3ToolNames(contract)),
     ...modeProblems(pins),
     ...manifestProblems(),
   ];
