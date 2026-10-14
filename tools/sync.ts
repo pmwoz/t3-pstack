@@ -23,6 +23,8 @@ export type Outcome =
 
 type Merge3 = (ours: Buffer, base: Buffer, theirs: Buffer) => { clean: boolean; content: Buffer };
 
+const VERSION_FILE = "pstack/.cursor-plugin/plugin.json";
+
 const same = (a?: Buffer, b?: Buffer) => (a === undefined ? b === undefined : b !== undefined && a.equals(b));
 
 /** Three-way decision for one plugin path: base is the old upstream, theirs the new one. */
@@ -67,17 +69,27 @@ if (import.meta.main) {
   }
 
   const sources = snapshotSources(pins);
-  const present = sources.filter((s) => run(["git", "cat-file", "-e", `${sha}:${s}`], { cwd: cache, allowFail: true }).code === 0);
+  const listed = run(["git", "ls-tree", "--name-only", sha, "--", ...sources], { cwd: cache }).stdout.toString().split("\n");
+  const missing = sources.filter((s) => !listed.includes(s));
+  if (missing.length)
+    throw new Error(`upstream ${sha.slice(0, 10)} has no ${missing.join(", ")}. Point each at its new upstream path in pins.json, or remove it there.`);
   const fresh = mkdtempSync(join(tmpdir(), "t3p-upstream-"));
-  run(["tar", "-x", "-C", fresh], { input: run(["git", "archive", sha, ...present], { cwd: cache }).stdout });
+  run(["tar", "-x", "-C", fresh], { input: run(["git", "archive", sha, ...sources], { cwd: cache }).stdout });
+  const version: unknown = JSON.parse(readFileSync(join(fresh, VERSION_FILE), "utf8")).version;
+  if (typeof version !== "string") throw new Error(`upstream ${VERSION_FILE} at ${sha.slice(0, 10)} has no version.`);
+  const commits = run(["git", "log", "--format=%h %as %s", `${pins.upstream.commit}..${sha}`, "--", ...sources], { cwd: cache })
+    .stdout.toString().trim().split("\n").filter(Boolean);
 
   const base = expectedTree(pins, UPSTREAM_DIR);
   const theirs = expectedTree(pins, fresh);
   const ours = readTree(PLUGIN_DIR);
   const freshFiles = new Map(mappedFiles(pins, fresh).map(({ dst, abs }) => [dst, abs]));
+  const outcomes = [...new Set([...base.keys(), ...theirs.keys()])].map(
+    (path) => [path, decide(base.get(path), ours.get(path), theirs.get(path), gitMerge3)] as const,
+  );
+
   const report = { from: pins.upstream.commit, to: sha, updated: [] as string[], merged: [] as string[], conflicts: [] as string[] };
-  for (const path of new Set([...base.keys(), ...theirs.keys()])) {
-    const outcome = decide(base.get(path), ours.get(path), theirs.get(path), gitMerge3);
+  for (const [path, outcome] of outcomes) {
     if (outcome.kind === "unchanged") continue;
     const abs = join(PLUGIN_DIR, path);
     if (outcome.content === undefined) rmSync(abs, { force: true });
@@ -95,12 +107,10 @@ if (import.meta.main) {
   rmSync(UPSTREAM_DIR, { recursive: true, force: true });
   run(["cp", "-R", fresh, UPSTREAM_DIR]);
   rmSync(fresh, { recursive: true });
-  const commits = run(["git", "log", "--format=%h %as %s", `${pins.upstream.commit}..${sha}`, "--", ...sources], { cwd: cache })
-    .stdout.toString().trim().split("\n").filter(Boolean);
   pins.upstream.commit = sha;
-  pins.upstream.version = JSON.parse(readFileSync(join(UPSTREAM_DIR, "pstack/.cursor-plugin/plugin.json"), "utf8")).version;
+  pins.upstream.version = version;
   savePins(pins);
 
-  console.log(JSON.stringify({ ...report, version: pins.upstream.version, missingSources: sources.filter((s) => !present.includes(s)), commits }, null, 2));
+  console.log(JSON.stringify({ ...report, version, commits }, null, 2));
   if (report.conflicts.length) process.exit(2);
 }

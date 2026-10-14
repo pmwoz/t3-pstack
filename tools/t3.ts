@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { T3_DIR, loadPins, run, savePins, type Pins } from "./lib.ts";
+import { T3_DIR, loadPins, run, savePins, type Pins, type Tree } from "./lib.ts";
 
 const TOOLKITS = "apps/server/src/mcp/toolkits";
 
@@ -10,7 +10,9 @@ export const resolveRef = (repo: string, ref: string): string => gh(`repos/${rep
 
 export const fileAt = (repo: string, path: string, sha: string): Buffer | undefined => {
   const r = run(["gh", "api", "-H", "Accept: application/vnd.github.raw", `repos/${repo}/contents/${path}?ref=${sha}`], { allowFail: true });
-  return r.code === 0 ? r.stdout : undefined;
+  if (r.code === 0) return r.stdout;
+  if (r.stderr.includes("(HTTP 404)")) return undefined;
+  throw new Error(`cannot fetch ${path} at ${sha.slice(0, 10)}: ${r.stderr.trim()}`);
 };
 
 /** Contract paths at a commit: the pinned list plus any toolkit that appeared since. */
@@ -26,14 +28,16 @@ if (import.meta.main) {
   const pins = loadPins();
   const sha = resolveRef(pins.t3.repo, process.argv[2] ?? "main");
   const paths = contractPaths(pins, sha);
-  rmSync(join(T3_DIR, "contract"), { recursive: true, force: true });
-  const missing: string[] = [];
+  const contract: Tree = new Map();
   for (const path of paths) {
     const content = fileAt(pins.t3.repo, path, sha);
-    if (!content) {
-      missing.push(path);
-      continue;
-    }
+    if (content) contract.set(path, content);
+  }
+  const missing = paths.filter((p) => !contract.has(p));
+  if (missing.length)
+    throw new Error(`T3 ${sha.slice(0, 10)} has no ${missing.join(", ")}. Point each at its new path in pins.json t3.paths, or remove it there.`);
+  rmSync(join(T3_DIR, "contract"), { recursive: true, force: true });
+  for (const [path, content] of contract) {
     const abs = join(T3_DIR, "contract", path);
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, content);
@@ -41,5 +45,5 @@ if (import.meta.main) {
   pins.t3.commit = sha;
   pins.t3.paths = paths;
   savePins(pins);
-  console.log(JSON.stringify({ commit: sha, files: pins.t3.paths.length, missing }, null, 2));
+  console.log(JSON.stringify({ commit: sha, files: contract.size, missing }, null, 2));
 }

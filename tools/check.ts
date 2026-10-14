@@ -67,6 +67,25 @@ export function toolReferenceProblems(expected: Tree, tree: Tree, drift: Drift, 
   return problems;
 }
 
+export function conflictProblems(expected: Tree, tree: Tree): string[] {
+  const problems: string[] = [];
+  for (const [path, content] of tree) {
+    const upstream = `\n${(expected.get(path)?.toString("utf8") ?? "").replace(/\r\n/g, "\n")}\n`;
+    const lines = content.toString("utf8").replace(/\r\n/g, "\n").split("\n");
+    const open: Array<{ start: number; separated: boolean }> = [];
+    for (const [i, line] of lines.entries()) {
+      if (/^<{7}( |$)/.test(line)) open.push({ start: i, separated: false });
+      else if (line === "=======" && open.length) open.at(-1)!.separated = true;
+      else if (/^>{7}( |$)/.test(line)) {
+        const block = open.pop();
+        if (block?.separated && !upstream.includes(`\n${lines.slice(block.start, i + 1).join("\n")}\n`))
+          problems.push(`${path}:${block.start + 1}: unresolved merge conflict.`);
+      }
+    }
+  }
+  return problems;
+}
+
 function modeProblems(pins: ReturnType<typeof loadPins>): string[] {
   return mappedFiles(pins, UPSTREAM_DIR).flatMap(({ dst, abs }) => {
     const plugin = join(PLUGIN_DIR, dst);
@@ -93,11 +112,14 @@ if (import.meta.main) {
   const drift = loadDrift();
   const actual = readTree(PLUGIN_DIR);
   const expected = expectedTree(pins, UPSTREAM_DIR);
+  const contract = readTree(join(T3_DIR, "contract"));
   const problems = [
     ...driftProblems(expected, actual, drift),
+    ...conflictProblems(expected, actual),
     ...[...actual].flatMap(([path, content]) => frontmatterProblems(path, content)),
     ...linkProblems(actual),
-    ...toolReferenceProblems(expected, actual, drift, t3ToolNames(readTree(join(T3_DIR, "contract")))),
+    ...pins.t3.paths.filter((p) => !contract.has(p)).map((p) => `t3/contract/${p}: missing. Restore it with bun run t3:pin ${pins.t3.commit}.`),
+    ...toolReferenceProblems(expected, actual, drift, t3ToolNames(contract)),
     ...modeProblems(pins),
     ...manifestProblems(),
   ];
