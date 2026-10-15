@@ -45,7 +45,7 @@ Omit `runtimeMode` on every `delegate_task`, so the child inherits yours. A narr
 
 Upstream reads per-role models from "the `/setup-pstack` rule" (`~/.cursor/rules/pstack-models.mdc`) and falls back to slugs written in the skills. Under T3:
 
-1. Read the role's line in `~/.agents/pstack-models.md` (written by `/setup-pstack`). The line format is `<role>: <descriptor>[, <descriptor>]`, and a descriptor is `<provider>:<model>@<effort>`.
+1. Read the role's line in `~/.agents/pstack-models.md` (written by `/setup-pstack`). The line format is `<role>: <descriptor>[, <descriptor>]`, and a descriptor is `<provider>:<model>@<effort>`. Comment Sicko, which `no-comments` spawns, is a judgment lane, so it reads the `judgment and prose` line.
 2. Resolve each descriptor against `orchestrator_capabilities` into `target: {providerInstanceId, model, options}`.
    - Provider is a `providerInstanceId` such as `claudeAgent` or `codex`. The short form `claude` means the instance whose `driverKind` is `claudeAgent`. Use an instance with `canRunChildTask: true`.
    - Model is a catalog model id. A short form such as `opus` means the newest catalog id that contains it.
@@ -67,6 +67,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child. A child sha
 - **A before run gets its own worktree too.** Reproduce the old behavior in `git worktree add --detach ${TMPDIR:-/tmp}/pstack/<repo>/<run>/before origin/<default-branch>`, whether the root or a lane runs it. Never copy the default branch's files into the working checkout, because the next commit picks them up.
 - **Read-only lanes review a frozen SHA.** Before a round of read-only lanes, such as interrogate reviewers, commit what is under review and run `git worktree add --detach ${TMPDIR:-/tmp}/pstack/<repo>/<run>/review-<sha> <sha>`. The brief names that path and the SHA, and the round's read-only lanes read only there, because your own worktree keeps changing while they work. Remove it after you synthesize the round.
 - **Evidence outlives worktrees.** Write the decision log, verification output, review prompts, and child reports under `${PSTACK_STORE:-$HOME/.pstack/store}/<repo-name>/<run>/`, never inside a worktree. That directory is show-me-your-work's "work dir". `git worktree remove` deletes ignored files, and `gh pr merge --delete-branch` removes the worktree that holds the merged branch. A project verification skill that writes evidence inside the checkout (`build/`, `work/`) still applies. Copy its evidence directory into the work dir before the reply or the trail cites it.
+- **Cleanup removes only what the root made.** When the user asks to clean up, remove the worktrees the root added with `git worktree add` and its scratch files outside the work dir. Keep each child's worktree, which belongs to the child's thread, and keep the work dir, which holds the evidence the trail and the PR cite.
 - **The user picks the root's workspace.** The user starts a thread in a worktree from the T3 UI. The root works in the checkout its thread is in and never moves it. If the root sits on `main` and the task writes, it creates a branch there with `git switch -c <branch>`. Never call `t3_worktree_handoff`. It detaches the provider session, and the queued continuation can wait for minutes or never start.
 - **Upstream's capacity numbers assume cloud VMs.** Cap in-flight writing lanes at what this machine runs. Give each live lane its own ports and data directories per the project's verification skill. If the app cannot run side by side, run those lanes in sequence.
 - **Separate top-level threads** come only from an explicit user request for them. Then use `t3_thread_launch` with a `workspaceStrategy`. A launched thread is not a task: follow it with `t3_thread_read` or `t3_thread_wait`, never `task_status`, and it does not wake you when it ends.
@@ -83,7 +84,8 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child. A child sha
 - **`/loop` on a fixed cadence** (`/loop 1h`, audit ticks, heartbeats). The root calls `schedule_task` with `{type: "interval", everyMs: 3600000}` bound to its own thread, reports `nextRunAt`, and calls `delete_scheduled_task` when the run closes. Schedule from the root, because a child's schedule posts into the child's thread.
 - **`/loop until X`** with no outside event: keep iterating within the run. Add a schedule only when the work must survive turn ends.
 - **Events a PR watch cannot see.** T3 refuses to watch a PR that is already merged, and it cannot watch a ref, a branch without a PR, or a post-merge CI run. For these (the orchestrate retro watcher, an autonomous run waiting on a ref) and for a heartbeat fallback, the root calls `schedule_task` with an interval bound to its own thread. The prompt states the check and the exit condition. Call `delete_scheduled_task` once the condition holds.
-- **Never end a turn that waits only on a background shell command.** It dies when the user settles the thread or the session ends, and then nothing wakes you. Write the reply first. Report what is still pending as a next step.
+- **Long shell commands on Claude.** Run a long command, such as a gate, a test suite, or a build, with `run_in_background` and end the turn. Its exit wakes you, and so does each delegated task that finishes. Do not wait in a foreground loop while children run, because a child's completion can stay queued until your turn ends.
+- **Long shell commands on Codex.** Never end a turn that waits only on a background shell command. It dies when the user settles the thread or the session ends, and then nothing wakes you. Write the reply first. Report what is still pending as a next step.
 - **Stacks.** `list_thread_pull_requests` reports linked PRs and their stack chains.
 
 ## History and transcripts
@@ -115,6 +117,10 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child. A child sha
 - **Automations** (`automations/benny`). A webhook or fixed-time `schedule_task`. Get webhook signing secrets with `request_secret`.
 - **Grok Bot** (`/make-bot-ui`). None. The skill ships unchanged but has nothing to wake under T3.
 - **A Cursor restart.** T3 keeps threads, delegated tasks, and queues across restarts. Re-read `task_status` for recorded ids and `t3_thread_list`, then reattach by PR and branch.
+
+## The todolist
+
+On Claude, T3 exposes no todo tool. Keep poteto-mode's todolist as `todo.md` in the work dir (Worktrees section). Copy the playbook's steps in as poteto-mode says, mark each one done or `skip: <reason>`, and update the file as you work. Read it again after a context compaction and before the final reply.
 
 ## Tool names on Codex
 
