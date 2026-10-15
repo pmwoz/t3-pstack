@@ -416,7 +416,7 @@ describe("session-start hook", () => {
         hookEventName: "SessionStart",
         additionalContext: [
           "pstack for T3 Code is installed at /opt/pstack.",
-          "New task? Playbook match or rigor needed -> apply /poteto-mode. Casual turn or user opts out -> don't.",
+          "New task? Playbook match or rigor needed -> apply /poteto-mode. Casual turn or user opts out -> don't. A delegated child task follows its brief and applies poteto-mode only when the brief says so.",
           "pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read /opt/pstack/skills/<name>/SKILL.md in full and follow it. The Skill tool refuses them. Read each file with its own Read call. In zsh, an unquoted separator such as echo ===== aborts the rest of a chained shell line.",
           "Before a pstack skill spawns a subagent or names a Cursor feature, read /opt/pstack/skills/poteto-mode/references/t3-adapter.md.",
         ].join("\n"),
@@ -434,7 +434,7 @@ describe("session-start hook", () => {
         hookEventName: "SessionStart",
         additionalContext: [
           "pstack for T3 Code is installed at /opt/pstack.",
-          "New task? Playbook match or rigor needed -> apply poteto-mode. Casual turn or user opts out -> don't.",
+          "New task? Playbook match or rigor needed -> apply poteto-mode. Casual turn or user opts out -> don't. A delegated child task follows its brief and applies poteto-mode only when the brief says so.",
           "pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read /opt/pstack/skills/<name>/SKILL.md in full and follow it. Codex keeps them out of your skill list, so read the file instead of waiting for a skill match. Read each file with its own shell command. In zsh, an unquoted separator such as echo ===== aborts the rest of a chained shell line.",
           "Before a pstack skill spawns a subagent or names a Cursor feature, read /opt/pstack/skills/poteto-mode/references/t3-adapter.md.",
         ].join("\n"),
