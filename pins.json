@@ -1,8 +1,8 @@
 {
   "upstream": {
     "repo": "cursor/plugins",
-    "commit": "1e5c90a4b6f249917bd21fe361b3a2a7deb741b8",
-    "version": "0.15.24",
+    "commit": "e5136d82418d2db3165ea1050d17577cd618cc05",
+    "version": "0.15.25",
     "map": {
       "pstack/skills": "skills",
       "pstack/agents": "agents",
