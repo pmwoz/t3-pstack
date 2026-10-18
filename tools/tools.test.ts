@@ -417,7 +417,7 @@ describe("session-start hook", () => {
         additionalContext: [
           "pstack for T3 Code is installed at /opt/pstack.",
           "New task? Playbook match or rigor needed -> apply /poteto-mode. Casual turn or user opts out -> don't. A delegated child task follows its brief and applies poteto-mode only when the brief says so.",
-          "pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read /opt/pstack/skills/<name>/SKILL.md in full and follow it. The Skill tool refuses them. Read each file with its own Read call. In zsh, an unquoted separator such as echo ===== aborts the rest of a chained shell line.",
+          "pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read /opt/pstack/skills/<name>/SKILL.md in full and follow it. The Skill tool refuses them. Read each file with its own Read call. In zsh, an unquoted glob that matches nothing, such as grep --include=*.rs, and a separator such as echo ===== abort the command, and the call can still exit 0. Quote them.",
           "Before a pstack skill spawns a subagent or names a Cursor feature, read /opt/pstack/skills/poteto-mode/references/t3-adapter.md.",
         ].join("\n"),
       },
@@ -435,10 +435,56 @@ describe("session-start hook", () => {
         additionalContext: [
           "pstack for T3 Code is installed at /opt/pstack.",
           "New task? Playbook match or rigor needed -> apply poteto-mode. Casual turn or user opts out -> don't. A delegated child task follows its brief and applies poteto-mode only when the brief says so.",
-          "pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read /opt/pstack/skills/<name>/SKILL.md in full and follow it. Codex keeps them out of your skill list, so read the file instead of waiting for a skill match. Read each file with its own shell command. In zsh, an unquoted separator such as echo ===== aborts the rest of a chained shell line.",
+          "pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read /opt/pstack/skills/<name>/SKILL.md in full and follow it. Codex keeps them out of your skill list, so read the file instead of waiting for a skill match. Read each file with its own shell command. In zsh, an unquoted glob that matches nothing, such as grep --include=*.rs, and a separator such as echo ===== abort the command, and the call can still exit 0. Quote them.",
           "Before a pstack skill spawns a subagent or names a Cursor feature, read /opt/pstack/skills/poteto-mode/references/t3-adapter.md.",
         ].join("\n"),
       },
     });
+  });
+});
+
+describe("pre-bash hook", () => {
+  const registered = JSON.parse(readFileSync(join(PLUGIN_DIR, "hooks/hooks.json"), "utf8")).hooks.PreToolUse;
+  function preBash(command: string, { background = false, shell = "/bin/zsh" } = {}) {
+    const [group] = registered;
+    const line = group.hooks[0].command.replaceAll("${CLAUDE_PLUGIN_ROOT}", PLUGIN_DIR);
+    const proc = Bun.spawnSync(["sh", "-c", line], {
+      env: { ...process.env, SHELL: shell },
+      stdin: Buffer.from(JSON.stringify({ tool_name: "Bash", tool_input: { command, run_in_background: background } })),
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    return { code: proc.exitCode, stderr: proc.stderr.toString() };
+  }
+
+  test("runs on Bash only", () => {
+    expect(registered.map((group: { matcher: string }) => group.matcher)).toEqual(["Bash"]);
+  });
+
+  test("blocks a foreground wait loop and lets it run in the background", () => {
+    const wait = "until [ -s gate.exit ]; do sleep 5; done; cat gate.exit";
+    expect(preBash(wait)).toEqual({ code: 2, stderr: expect.stringContaining("run_in_background: true") });
+    expect(preBash(wait, { background: true }).code).toBe(0);
+    expect(preBash("while read f; do echo $f; done < list").code).toBe(0);
+    expect(preBash('git commit -m "wait while the gate runs, sleep 5 s, retry"').code).toBe(0);
+  });
+
+  test("blocks words zsh always aborts on", () => {
+    expect(preBash("grep -rn foo --include=*.rs src")).toEqual({ code: 2, stderr: expect.stringContaining("--include='*.rs'") });
+    expect(preBash("echo =====; cat a.md")).toEqual({ code: 2, stderr: expect.stringContaining("echo '====='") });
+  });
+
+  test("allows the quoted, escaped, heredoc, and non-zsh forms", () => {
+    for (const command of [
+      "grep -rn foo --include='*.rs' src",
+      "grep -rn foo --include=\\*.rs src",
+      "echo '====='",
+      '[ "$a" == "$b" ] && echo same',
+      "git log --format=%H -1",
+      "ls *.md",
+      "cat <<EOF > notes.md\nTitle\n=====\n--include=*.rs\nEOF",
+    ])
+      expect(preBash(command).code).toBe(0);
+    expect(preBash("grep -rn foo --include=*.rs src", { shell: "/bin/bash" }).code).toBe(0);
   });
 });

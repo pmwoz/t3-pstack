@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Claude runs this before each Bash call, from hooks/hooks.json. Exit 2 blocks the call and shows stderr to the agent.
+set -uo pipefail
+command -v jq >/dev/null || exit 0
+input=$(cat)
+command=$(jq -r '.tool_input.command // ""' <<<"$input")
+background=$(jq -r '.tool_input.run_in_background // false' <<<"$input")
+block() {
+  echo "pstack: $1" >&2
+  exit 2
+}
+
+# Heredoc bodies, quoted text, and escaped characters are data, so check only the unquoted shell text.
+unquoted=$(sed -E -e 's/\\.//g' -e "s/'[^']*'//g" -e 's/"[^"]*"//g' <<<"${command%%<<*}")
+
+if [ "$background" != true ] &&
+  grep -Eq '(^|[^[:alnum:]_])(until|while)[[:space:]]' <<<"$unquoted" &&
+  grep -Eq '(^|[^[:alnum:]_])sleep[[:space:]]' <<<"$unquoted"; then
+  block "a foreground wait loop blocks the turn, and finished subagents cannot wake you until it ends. Run this command with run_in_background: true and end the turn. Its exit wakes you."
+fi
+
+case "${SHELL:-}" in
+  *zsh) ;;
+  *) exit 0 ;;
+esac
+if grep -Eq '(^|[[:space:]])--?[[:alnum:]_-]+=[^[:space:]]*[*?]' <<<"$unquoted"; then
+  block "zsh aborts this command with \"no matches found\", because an unquoted glob in an option such as --include=*.rs matches no file. Quote the glob, as in --include='*.rs'."
+fi
+if grep -Eq '(^|[[:space:]])===+([[:space:];|&)]|$)' <<<"$unquoted"; then
+  block "zsh expands a word that starts with = to a command path, so echo ===== fails and drops the rest of the line. Quote it, as in echo '====='."
+fi
+exit 0
