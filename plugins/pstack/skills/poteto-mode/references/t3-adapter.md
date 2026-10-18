@@ -112,7 +112,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child. A child sha
 ## Cursor products with no counterpart
 
 - **Custom Mode, Option+Enter.** None. Start a task with `/pstack:poteto-mode` (Claude) or `$pstack:poteto-mode` (Codex).
-- **Cursor's built-in `/babysit`.** Not present. The Babysit playbook is the only babysit.
+- **Cursor's built-in `/babysit` and `/autopilot` PR watchers.** Not present. The Babysit playbook is the only PR watcher. The Autopilot playbooks are pstack's own, not this built-in.
 - **Plan Mode.** T3 interaction mode `plan`.
 - **Automations** (`automations/benny`). A webhook or fixed-time `schedule_task`. Get webhook signing secrets with `request_secret`.
 - **Grok Bot** (`/make-bot-ui`). None. The skill ships unchanged but has nothing to wake under T3.
