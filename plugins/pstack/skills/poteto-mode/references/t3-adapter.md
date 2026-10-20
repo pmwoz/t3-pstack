@@ -72,13 +72,14 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child. A child sha
 - **The user picks the root's workspace.** The user starts a thread in a worktree from the T3 UI. The root works in the checkout its thread is in and never moves it. If the root sits on `main` and the task writes, it creates a branch there with `git switch -c <branch>`. Never call `t3_worktree_handoff`. It detaches the provider session, and the queued continuation can wait for minutes or never start.
 - **Upstream's capacity numbers assume cloud VMs.** Cap in-flight writing lanes at what this machine runs. Give each live lane its own ports and data directories per the project's verification skill. If the app cannot run side by side, run those lanes in sequence. A push that runs a pre-push gate waits while a lane drives the shared VM, simulator, or app.
 - **Separate top-level threads** come only from an explicit user request for them. Then use `t3_thread_launch` with a `workspaceStrategy`. A launched thread is not a task: follow it with `t3_thread_read` or `t3_thread_wait`, never `task_status`, and it does not wake you when it ends.
-- **Listing worktrees.** `t3_worktree_status` reports only your own thread. To audit every worktree, use `t3_worktree_list`, `t3_thread_list`, and `t3_thread_read` per thread for its `worktreePath`. Add `git worktree list` for detached worktrees, which `t3_worktree_list` omits.
+- **Listing worktrees.** `t3_worktree_status` reports only your own thread. To audit every worktree, use `t3_worktree_list`, `t3_thread_list`, and `t3_thread_read` per thread for its `worktreePath`. `t3_thread_list` also returns each thread's linked PRs and their state in `pullRequests`, so the audit needs no `list_thread_pull_requests` call per thread. Add `git worktree list` for detached worktrees, which `t3_worktree_list` omits.
 
 ## Pull requests, watching, and loops
 
 **Only the root thread owns a PR in T3.** T3 refuses `watch_pull_request` for a delegated child's thread.
 
 - **Opening a PR.** T3 has no PR-creation tool, so the skills' "no built-in PR tool" branch applies: create it with the resolved forge (`gh` or `origin`), ready for review, never draft. The root calls `link_pull_request` for every PR, each stack layer included. A child that opens a PR returns its URL and head SHA, and the root links it.
+- **Review guides.** When the root hands PRs to the user for review or merge, it reads each with `read_pull_request_guide`. Then it calls `write_pull_request_guides` once for every PR whose guide is missing or `stale`. A run takes minutes, so do not wait for it. The user reads the guide in the PR's Guide tab. Pass each PR as `repository` and `number`, because the `url` form can fail to find the project's checkout. A PR whose outcome is `failed`, for example because guides are off in T3's Source Control settings, gets no guide. Give its `detail` in the reply and go on.
 - **A PR owner (autopilot, orchestrate, multi-phase plans)** is a role, not a long-lived agent. Each owner round (build, fix, merge) is a fresh `delegate_task` in that PR's worktree. The round does its work, reports the PR URL, head SHA, and state, and returns. The root decides and delegates the next round.
 - **Babysit inside a child.** A child told to babysit does one `check` pass, fixes what it can, and returns the PR state. It never arms a watch.
 - **`/loop` around a PR.** This covers babysit drive and background, shipping, the orchestrate frontier, and autonomous-run events. The root calls `watch_pull_request` and ends the turn. T3 wakes it on checks, reviews, and conflicts. On each wake, take the verdict from `<pstack-root>/skills/poteto-mode/scripts/watch-pr/watch-pr --status-only --pr <number>`, run in the PR's checkout (or the playbook's `origin` or `gh pr view` read), act, and keep the watch armed across push waves. Call `unwatch_pull_request` before handing back to the user. `scripts/watch-pr` stays the verdict oracle.
@@ -118,7 +119,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child. A child sha
 - **Plan Mode.** T3 interaction mode `plan`.
 - **Automations** (`automations/benny`). A webhook or fixed-time `schedule_task`. Get webhook signing secrets with `request_secret`.
 - **Grok Bot** (`/make-bot-ui`). None. The skill ships unchanged but has nothing to wake under T3.
-- **A Cursor restart.** T3 keeps threads, delegated tasks, and queues across restarts. Re-read `task_status` for recorded ids and `t3_thread_list`, then reattach by PR and branch.
+- **A Cursor restart.** T3 keeps threads, delegated tasks, and queues across restarts. Re-read `task_status` for recorded ids and `t3_thread_list`, whose `pullRequests` lists each thread's PRs, then reattach by PR and branch.
 
 ## The todolist
 
