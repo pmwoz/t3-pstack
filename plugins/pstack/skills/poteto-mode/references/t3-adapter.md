@@ -36,7 +36,7 @@ Omit `runtimeMode` on every `delegate_task`, so the child inherits yours. A narr
 | `run_in_background: true`, waiting on the result | Async is the default. Completion wakes you. End the turn. Do not poll. Call `task_status` only when you need a result mid-turn. "The Task response body" is the task `summary`. |
 | Resume, message, or queue a follow-up | A new round is a new `delegate_task` with the full consolidated brief and a new `clientRequestId`. Never `t3_thread_send` a new round to `childThreadId`. Send to the child only for upstream's narrow case: state that lives in that child. A live child takes `mode: "queue"` or `"steer"`. A child whose task finished can still take a send, for example when its worktree holds uncommitted changes. When the send returns a `taskId`, record it, and its completion wakes you. A queued or restarted follow-up gets its own task. A steer returns the task of the turn it joins, which you may already track, and none when that turn has no task. |
 | Stop, hold, cancel nested subagents | `task_cancel` (it stops nested tasks and their PR watches). A hold is a `t3_thread_send` with `mode: "steer"` and the zero-writes order. |
-| Liveness, the Cursor dashboard, recorded subagent IDs | `task_status` on the recorded `taskId`. Record `taskId` where upstream records subagent IDs, including each `taskId` a follow-up send returns. `hasPendingQuestion: true` means the child is stuck on a question, which does not wake you (Questions section). |
+| Liveness, the Cursor dashboard, recorded subagent IDs | `task_status` on the recorded `taskId`. Record `taskId` where upstream records subagent IDs, including each `taskId` a follow-up send returns. `hasPendingQuestion: true` means the child is stuck on a question, which does not wake you (Questions section). A non-null `pendingApproval` means the child waits for a person to approve one of its actions. That does not wake you either, and you cannot grant it. Ask the user to approve or deny it in the child's thread, linked as `[title](t3-thread://v1/<childThreadId>)`. |
 | Eval blinding | Also blind the `title` and the worktree path, which the child can see. |
 
 `task_status` only finds tasks your own thread delegated. A grandchild's task belongs to its parent.
@@ -52,6 +52,7 @@ Upstream reads per-role models from "the `/setup-pstack` rule" (`~/.cursor/rules
    - Effort goes into the model option labeled "Reasoning" (`effort` on Claude, `reasoningEffort` on Codex). A model without a Reasoning option takes a descriptor with no `@<effort>`, and the target carries no effort option.
    - If the model is not in the catalog, use the closest model of the same provider and say so in the reply.
    - A project can turn a provider off. `orchestrator_capabilities` still lists it, but `delegate_task` refuses it as "disabled for project". Then run the lane on another provider and say so in the reply.
+   - Compare the `providerInstanceId`, `model`, and `options` that `delegate_task` returns with the target. If they differ, say so in the reply.
    - A descriptor that already names a full `providerInstanceId` and catalog model id needs no lookup. Build the target from it directly. Call `orchestrator_capabilities` only for a short form or after `delegate_task` rejects a target. On Claude its result overflows the tool limit and is saved to a file. Query that file with `jq`, for example `jq -c '.providers[] | select(.providerInstanceId == "codex") | [.models[].id]' <file>`.
 3. `inherit-parent` or `auto` means: omit `target`. The lane runs on your own provider and model, and it still counts toward a panel's fan-out.
 4. With no sheet line, translate the skill's default slug: `claude-opus-5-5-<effort>` is `claude:opus@<effort>`, `gpt-5.6-sol-<effort>` is `codex:gpt-6.1-sol@<effort>`, and `grok-4.7-<effort>-fast` or `grok-4.7-<effort>` is the `grok` provider when the catalog lists one that can run child tasks, else `codex:gpt-6.1-sol@<effort>`.
@@ -92,6 +93,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child. A child sha
 
 - **Current chat.** `t3_thread_read` with your thread id (`view: "activity"` lists tool calls and files read). This replaces `agent-transcripts/` paths and "the chat UUID". `currentThreadId` in a `t3_thread_list` result is your thread id. A child that reads this run's transcript, such as show-me-your-work's cross-model reviewer, gets that thread id and reads it with `t3_thread_read`. Never pass it a JSONL path.
 - **Earlier chats** (recall, reflect, session pickup, show-me-your-work audits). Use `t3_thread_search` and `t3_thread_list` in this project only. Pass thread ids to children, not file paths. Read a long thread in pages of `limit: 20` with `maxCharsPerItem: 2000`, and recover a long item with `itemId` and `textOffset`. Larger pages overflow the tool output. Cite a thread as `[title](t3-thread://v1/<threadId>)`.
+- **Messages from other threads.** A `t3_thread_read` item with `senderThreadId` is a message that thread sent with `t3_thread_send`, such as a parent's follow-up. The user did not type it, so do not read it as the user's words.
 - **Shell fallback.** `~/.claude/projects/<encoded-cwd>/*.jsonl` (Claude) and `~/.codex/sessions/**/*.jsonl` (Codex).
 - **Pinned and active chats** ("from the user or the sidebar") are threads with `t3_thread_list` status not settled.
 
@@ -111,7 +113,7 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child. A child sha
 
 ## Cursor products with no counterpart
 
-- **Custom Mode, Option+Enter.** None. Start a task with `/pstack:poteto-mode` (Claude) or `$pstack:poteto-mode` (Codex).
+- **Custom Mode, Option+Enter.** None. Start a task with `/pstack:poteto-mode` (Claude) or `$pstack:poteto-mode` (Codex). On Claude, T3's composer also offers pstack's skills in its `$` picker when the plugin is enabled in Claude Code, and sends the pick as `/pstack:<name>`.
 - **Cursor's built-in `/babysit` and `/autopilot` PR watchers.** Not present. The Babysit playbook is the only PR watcher. The Autopilot playbooks are pstack's own, not this built-in.
 - **Plan Mode.** T3 interaction mode `plan`.
 - **Automations** (`automations/benny`). A webhook or fixed-time `schedule_task`. Get webhook signing secrets with `request_secret`.
