@@ -39,4 +39,4 @@ Run this when `t3.commits`, `changedContractFiles`, `toolsAdded`, `toolsRemoved`
 
 ## 4. Report
 
-Reply with the upstream move (old and new version, commit count), the T3 move (old and new short sha), each PR as `https://github.com/pmwoz/t3-pstack/pull/<number>`, the opportunities, and anything left for the maintainer. Link each PR to this thread with `link_pull_request`.
+Reply with the upstream move (old and new version, commit count), the T3 move (old and new short sha), each PR as `https://github.com/pmwoz/t3-pstack/pull/<number>`, the opportunities, and anything left for the maintainer. When a PR bumps the version, the last item is `bun run install:local` after the merge, because sessions keep the old version until it runs. Link each PR to this thread with `link_pull_request`.

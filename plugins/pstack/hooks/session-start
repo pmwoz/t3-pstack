@@ -19,7 +19,7 @@ case "${1:-}" in
     ;;
 esac
 context="pstack for T3 Code is installed at $root.
-New task? Playbook match or rigor needed -> apply $mode. Casual turn or user opts out -> don't. A delegated child task follows its brief and applies poteto-mode only when the brief says so.
+New task? Playbook match or rigor needed -> apply $mode. Casual turn or user opts out -> don't. A delegated child task follows its brief and applies poteto-mode only when the brief says so. It writes its reports and its final reply in English, whatever language the user chats in.
 pstack skills start each other by path. To apply poteto-mode, or a skill that a pstack skill names, read $root/skills/<name>/SKILL.md in full and follow it. $refusal $reads In zsh, an unquoted glob that matches nothing, such as grep --include=*.rs, and a separator such as echo ===== abort the command, and the call can still exit 0. Quote them.
 Before a pstack skill spawns a subagent or names a Cursor feature, read $root/skills/poteto-mode/references/t3-adapter.md."
 jq -n --arg c "$context" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'
