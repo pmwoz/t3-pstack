@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Claude runs this before each Bash call, from hooks/hooks.json. Exit 2 blocks the call and shows stderr to the agent.
+# Exit 0 with JSON on stdout replaces the call's input.
 set -uo pipefail
 command -v jq >/dev/null || exit 0
 input=$(cat)
 command=$(jq -r '.tool_input.command // ""' <<<"$input")
 background=$(jq -r '.tool_input.run_in_background // false' <<<"$input")
+mode=$(jq -r '.permission_mode // ""' <<<"$input")
 block() {
   echo "pstack: $1" >&2
   exit 2
@@ -23,6 +25,11 @@ case "${SHELL:-}" in
   *zsh) ;;
   *) exit 0 ;;
 esac
+# Claude Code refuses setopt outside bypassPermissions as a security check, so other modes keep the blocks below.
+if [ "$mode" = bypassPermissions ] && grep -Eq '[][*?]|(^|[[:space:]])=' <<<"$unquoted"; then
+  jq -c '{hookSpecificOutput: {hookEventName: "PreToolUse", updatedInput: (.tool_input + {command: ("setopt nonomatch; unsetopt equals; " + .tool_input.command)})}}' <<<"$input"
+  exit 0
+fi
 if grep -Eq '(^|[[:space:]])--?[[:alnum:]_-]+=[^[:space:]]*[*?]' <<<"$unquoted"; then
   block "zsh aborts this command with \"no matches found\", because an unquoted glob in an option such as --include=*.rs matches no file. Quote the glob, as in --include='*.rs'."
 fi

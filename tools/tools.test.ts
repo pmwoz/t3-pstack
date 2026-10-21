@@ -445,17 +445,20 @@ describe("session-start hook", () => {
 
 describe("pre-bash hook", () => {
   const registered = JSON.parse(readFileSync(join(PLUGIN_DIR, "hooks/hooks.json"), "utf8")).hooks.PreToolUse;
-  function preBash(command: string, { background = false, shell = "/bin/zsh" } = {}) {
+  function preBash(command: string, { background = false, shell = "/bin/zsh", mode = "default" } = {}) {
     const [group] = registered;
     const line = group.hooks[0].command.replaceAll("${CLAUDE_PLUGIN_ROOT}", PLUGIN_DIR);
     const proc = Bun.spawnSync(["sh", "-c", line], {
       env: { ...process.env, SHELL: shell },
-      stdin: Buffer.from(JSON.stringify({ tool_name: "Bash", tool_input: { command, run_in_background: background } })),
+      stdin: Buffer.from(
+        JSON.stringify({ tool_name: "Bash", permission_mode: mode, tool_input: { command, run_in_background: background } }),
+      ),
       stdout: "pipe",
       stderr: "pipe",
     });
-    return { code: proc.exitCode, stderr: proc.stderr.toString() };
+    return { code: proc.exitCode, stderr: proc.stderr.toString(), stdout: proc.stdout.toString() };
   }
+  const rewritten = (stdout: string) => JSON.parse(stdout).hookSpecificOutput.updatedInput;
 
   test("runs on Bash only", () => {
     expect(registered.map((group: { matcher: string }) => group.matcher)).toEqual(["Bash"]);
@@ -463,15 +466,15 @@ describe("pre-bash hook", () => {
 
   test("blocks a foreground wait loop and lets it run in the background", () => {
     const wait = "until [ -s gate.exit ]; do sleep 5; done; cat gate.exit";
-    expect(preBash(wait)).toEqual({ code: 2, stderr: expect.stringContaining("run_in_background: true") });
+    expect(preBash(wait)).toMatchObject({ code: 2, stderr: expect.stringContaining("run_in_background: true") });
     expect(preBash(wait, { background: true }).code).toBe(0);
     expect(preBash("while read f; do echo $f; done < list").code).toBe(0);
     expect(preBash('git commit -m "wait while the gate runs, sleep 5 s, retry"').code).toBe(0);
   });
 
   test("blocks words zsh always aborts on", () => {
-    expect(preBash("grep -rn foo --include=*.rs src")).toEqual({ code: 2, stderr: expect.stringContaining("--include='*.rs'") });
-    expect(preBash("echo =====; cat a.md")).toEqual({ code: 2, stderr: expect.stringContaining("echo '====='") });
+    expect(preBash("grep -rn foo --include=*.rs src")).toMatchObject({ code: 2, stderr: expect.stringContaining("--include='*.rs'") });
+    expect(preBash("echo =====; cat a.md")).toMatchObject({ code: 2, stderr: expect.stringContaining("echo '====='") });
   });
 
   test("allows the quoted, escaped, heredoc, and non-zsh forms", () => {
@@ -486,5 +489,24 @@ describe("pre-bash hook", () => {
     ])
       expect(preBash(command).code).toBe(0);
     expect(preBash("grep -rn foo --include=*.rs src", { shell: "/bin/bash" }).code).toBe(0);
+  });
+
+  test("in bypassPermissions mode runs a glob or = command with bash's rules instead of blocking it", () => {
+    const run = preBash("grep -rn foo --include=*.rs src", { mode: "bypassPermissions", background: true });
+    expect(run.code).toBe(0);
+    expect(rewritten(run.stdout)).toEqual({
+      command: "setopt nonomatch; unsetopt equals; grep -rn foo --include=*.rs src",
+      run_in_background: true,
+    });
+    expect(rewritten(preBash("echo =====; cat a.md", { mode: "bypassPermissions" }).stdout).command).toStartWith("setopt nonomatch;");
+    expect(preBash("git status", { mode: "bypassPermissions" })).toEqual({ code: 0, stderr: "", stdout: "" });
+    expect(preBash("until [ -s gate.exit ]; do sleep 5; done", { mode: "bypassPermissions" }).code).toBe(2);
+  });
+
+  test.skipIf(!Bun.which("zsh"))("the rewritten command runs in zsh where the original aborts", () => {
+    const original = "ls /nonexistent-pstack-probe-* 2>/dev/null; echo =====; echo after";
+    const zsh = (command: string) => Bun.spawnSync(["zsh", "-fc", command], { stdout: "pipe", stderr: "pipe" });
+    expect(zsh(original).stdout.toString()).not.toContain("after");
+    expect(zsh(rewritten(preBash(original, { mode: "bypassPermissions" }).stdout).command).stdout.toString()).toBe("=====\nafter\n");
   });
 });
