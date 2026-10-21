@@ -138,7 +138,7 @@ Upstream's commands assume a Linux cloud VM. Under T3 they run on the user's mac
 - macOS has no `timeout`. Bound a command with `perl -e 'alarm shift; exec @ARGV' <seconds> <command>`, which exits 142 on expiry.
 - zsh does not split an unquoted `$var` into words. Use `${=var}` or an array.
 - zsh expands a word that starts with `=` to a command path. `echo =====` fails with `==== not found` and drops the rest of the line. Quote separators (`echo '====='`), or read each file with its own Read call.
-- zsh aborts the whole command line with `no matches found` when an unquoted glob matches nothing, such as `grep --include=*.rs` or `cat dir/*.exit`. The call can still exit 0, so an empty result may hide the error. Quote the glob (`--include='*.rs'`) or use `rg -g '*.rs'`. On Claude the pstack hook blocks an unquoted `--option=*glob` and an unquoted run of `=`.
+- zsh fails a statement with `no matches found` when an unquoted glob in it matches nothing, such as `grep --include=*.rs` or `cat dir/*.exit`. A `&&` chain stops there. The call can still exit 0, so an empty result may hide the error. Quote the glob (`--include='*.rs'`) or use `rg -g '*.rs'`. On Claude in `bypassPermissions` mode, the pstack hook runs a command that holds an unquoted glob or `=` word with `setopt nonomatch; unsetopt equals` in front, so both behave as in bash. In other modes Claude Code refuses `setopt`, so the hook blocks an unquoted `--option=*glob` and an unquoted run of `=` instead.
 
 ## A broken mapping
 
