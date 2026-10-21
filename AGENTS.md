@@ -10,5 +10,6 @@ Cursor's pstack skill pack, shipped for T3 Code (Claude and Codex). Read README.
 - Before every commit, run `bun run check`, `bun test tools`, and `bun run typecheck`.
 - Merge pull requests with squash only (`gh pr merge --squash`). Use the pull request title for the final commit title.
 - A release bumps the version with `bun run version <x.y.z>`. Claude Code and Codex cache plugins by version.
+- After a PR that bumps the version merges, run `bun run install:local`. Sessions read the installed cache, so a merged release does nothing until then. It fails unless both caches hold the version on `origin/main`.
 - Maintenance (upstream sync, T3 contract updates) follows `.claude/skills/maintain-t3-pstack/SKILL.md`.
 - Everything written to a file, commit, or GitHub is in English.

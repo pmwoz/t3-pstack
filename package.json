@@ -1,6 +1,6 @@
 {
   "name": "t3-pstack",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,8 @@
     "t3:pin": "bun tools/t3.ts",
     "test": "bun test tools",
     "typecheck": "tsc --noEmit",
-    "version": "bun tools/version.ts"
+    "version": "bun tools/version.ts",
+    "install:local": "bun tools/install-local.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
