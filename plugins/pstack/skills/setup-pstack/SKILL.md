@@ -11,7 +11,7 @@ Write `~/.agents/pstack-models.md`, the sheet that sets pstack's model per role.
 
 ### 1. Detect available models
 
-Call `orchestrator_capabilities`. Its providers with `canRunChildTask: true` and their models are the dependable source: these are the targets `delegate_task` accepts. A real value is a descriptor `<providerInstanceId>:<model id>@<effort>`, such as `claudeAgent:claude-opus-5-5@xhigh` or `codex:gpt-6.1-sol@xhigh`, where the effort is one of the model's "Reasoning" option ids. A model with no Reasoning option takes `<providerInstanceId>:<model id>` with no effort. Never write a descriptor whose provider, model, or effort the catalog does not list. The aliases `inherit-parent` and `auto` are always valid even though they are not detected descriptors.
+Call `orchestrator_capabilities`. Its providers with `canRunChildTask: true` and their models are the dependable source: these are the targets `delegate_task` accepts. It lists a short set of models per provider and leaves out legacy ones. For a model on the current sheet (step 2) that is not listed, call it again with `search` set to that model. A real value is a descriptor `<providerInstanceId>:<model id>@<effort>`, such as `claudeAgent:claude-opus-5-5@xhigh` or `codex:gpt-6.1-sol@xhigh`, where the effort is one of the `values` of the model's effort option (`effort` on Claude, `reasoningEffort` on Codex). A model with no effort option takes `<providerInstanceId>:<model id>` with no effort. Never write a descriptor whose provider, model, or effort the catalog does not list. The aliases `inherit-parent` and `auto` are always valid even though they are not detected descriptors.
 
 ### 2. Load current state
 
@@ -32,7 +32,7 @@ The default role-to-model mapping is the sheet shape shown in step 5 below. It i
 
 ### 4. Validate
 
-Every real descriptor written must be in the detected set: its provider can run child tasks, its model is listed under that provider, and its effort is one of that model's Reasoning option ids, or absent when the model has no Reasoning option. `inherit-parent` and `auto` always pass. If a chosen descriptor is not available, stop and ask again.
+Every real descriptor written must be in the detected set: its provider can run child tasks, its model is listed under that provider or found with `search`, and its effort is one of the `values` of that model's effort option, or absent when the model has no effort option. `inherit-parent` and `auto` always pass. If a chosen descriptor is not available, stop and ask again.
 
 ### 5. Write the sheet
 
