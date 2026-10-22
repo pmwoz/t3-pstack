@@ -8,6 +8,7 @@
   "README.md": "No Claude Code install section. Upstream's installs Cursor's own Claude Code tree, and its adapter link points at docs/harness, which this port does not ship. The T3 adapter replaces it.",
   "skills/poteto-mode/references/t3-adapter.md": "Maps every Cursor mechanic the skills name to T3 Code for Claude and Codex.",
   "skills/poteto-mode/SKILL.md": "One line pointing at the T3 adapter.",
+  "skills/poteto-mode/playbooks/babysit.md": "Step 8 names CodeRabbit beside Bugbot and points to the adapter for its local review, because hosted CodeRabbit skips stacked PRs and stops at its review quota.",
   "skills/poteto-mode/scripts/worktree-audit.sh": "Finds the last chat per worktree in Claude and Codex transcripts instead of Cursor's agent-transcripts.",
   "skills/poteto-help/SKILL.md": "T3 install steps, the ~/.agents model sheet, and no Custom Mode, cloud agent, or make-bot-ui advice.",
   "skills/setup-pstack/SKILL.md": "Detects models with orchestrator_capabilities and writes ~/.agents/pstack-models.md with T3 descriptors instead of a Cursor rule.",
