@@ -14,7 +14,7 @@ The skills cite upstream paths such as `pstack/skills/<x>/...` or `git show orig
 
 ## Starting another skill
 
-A skill that names another one ("the **how** skill", "run `/deslop`", "the **prove-it-works** principle skill", "the control skill") means: read `<pstack-root>/skills/<name>/SKILL.md` in full and follow it. Do not call the Skill tool for a pstack skill. Claude refuses it for every skill upstream marks typed-only.
+A skill that names another one ("the **how** skill", "run `/deslop`", "the **prove-it-works** principle skill", "the control skill") means: read `<pstack-root>/skills/<name>/SKILL.md` in full and follow it. Do not call the Skill tool for a pstack skill. Claude refuses it for every skill upstream marks typed-only. If a project or user skill folder (Locations section) holds a skill of that name, read that copy instead. `reflect` puts its edits to a pstack skill there.
 
 - Principle skills live at `skills/principle-<name>/SKILL.md`.
 - `deslop`, `control-ui`, and `control-cli` come from Cursor's team kit and ship in `skills/`.
@@ -102,8 +102,8 @@ T3 has no cloud agents. Every lane is a local `delegate_task` child. A child sha
 
 ## Locations
 
-- **Project skill** (a generated verification skill, for example). Write `.claude/skills/<name>/` and symlink `.agents/skills/<name>` to it. Claude reads only `.claude/skills`, and Codex reads `.agents/skills`.
-- **User skill.** Write to `~/.claude/skills/` and `~/.agents/skills/`.
+- **Project skill** (a generated verification skill or `.cursor/skills/<name>/`, for example). Write `.claude/skills/<name>/` and symlink `.agents/skills/<name>` to it. Claude reads only `.claude/skills`, and Codex reads `.agents/skills`.
+- **User skill** (`~/.cursor/skills/<name>/`). Write to `~/.claude/skills/` and `~/.agents/skills/`.
 - **`.cursor/rules`.** Read `CLAUDE.md` and `AGENTS.md`, plus any `.cursor/rules` the repo still has.
 - **"The current agent's store", "the root agent's store", "the agent store"** (orchestrate, autopilot-full, and multi-phase plans). Use `${PSTACK_STORE:-$HOME/.pstack/store}/<repo-name>/`. No system prompt names it, so each brief that writes there names the full path. Export `ORCH_STORE` to it for `scripts/orch`. Never write it inside the checkout.
 - **"MCPs from the Cursor environment" and `mcps/`.** Group your tools by MCP server name.
