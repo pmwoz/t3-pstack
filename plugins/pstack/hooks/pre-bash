@@ -13,7 +13,40 @@ block() {
 }
 
 # Heredoc bodies, quoted text, and escaped characters are data, so check only the unquoted shell text.
-unquoted=$(sed -E -e 's/\\.//g' -e "s/'[^']*'//g" -e 's/"[^"]*"//g' <<<"${command%%<<*}")
+# A << that does not read as a heredoc ends the check, because the text after it can be data.
+without_heredoc_bodies() {
+  awk -v q="'" '
+    left {
+      line = $0
+      if (dash[cur]) sub(/^\t+/, "", line)
+      if (line == delim[cur] && ++cur == n) left = 0
+      next
+    }
+    {
+      out = ""; rest = $0; n = 0; cur = 0
+      while (at = index(rest, "<<")) {
+        out = out substr(rest, 1, at - 1)
+        rest = substr(rest, at + 2)
+        if (substr(rest, 1, 1) == "<") { out = out "<<<"; rest = substr(rest, 2); continue }
+        dash[n] = sub(/^-/, "", rest)
+        sub(/^[ \t]+/, "", rest)
+        quote = substr(rest, 1, 1)
+        if (quote == "\"" || quote == q || quote == "\\") rest = substr(rest, 2)
+        if (!match(rest, /^[A-Za-z0-9_]+/)) { print out; exit }
+        delim[n++] = substr(rest, 1, RLENGTH)
+        rest = substr(rest, RLENGTH + 1)
+        if (quote == "\"" || quote == q) {
+          if (substr(rest, 1, 1) != quote) { print out; exit }
+          rest = substr(rest, 2)
+        }
+        if (rest !~ /^($|[ \t;|&)<>])/) { print out; exit }
+      }
+      # A quote that opens before a heredoc can close after it, as in "$(cat <<EOF ... )", so the two lines stay one.
+      printf "%s%s", out rest, n ? " " : "\n"
+      left = n
+    }'
+}
+unquoted=$(without_heredoc_bodies <<<"$command" | sed -E -e 's/\\.//g' -e "s/'[^']*'//g" -e 's/"[^"]*"//g')
 
 if [ "$background" != true ] &&
   grep -Eq '(^|[^[:alnum:]_])(until|while)[[:space:]]' <<<"$unquoted" &&
@@ -26,8 +59,7 @@ case "${SHELL:-}" in
   *) exit 0 ;;
 esac
 # Claude Code refuses setopt outside bypassPermissions as a security check, so other modes keep the blocks below.
-# The shell text after a heredoc is not checked, so a command with a heredoc always gets the prefix.
-if [ "$mode" = bypassPermissions ] && { [[ $command == *'<<'* ]] || grep -Eq '[][*?]|(^|[[:space:]])=' <<<"$unquoted"; }; then
+if [ "$mode" = bypassPermissions ] && grep -Eq '[][*?]|(^|[[:space:]])=' <<<"$unquoted"; then
   jq -c '{hookSpecificOutput: {hookEventName: "PreToolUse", updatedInput: (.tool_input + {command: ("setopt nonomatch; unsetopt equals; " + .tool_input.command)})}}' <<<"$input"
   exit 0
 fi

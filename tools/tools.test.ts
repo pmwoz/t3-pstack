@@ -479,6 +479,7 @@ describe("pre-bash hook", () => {
 
   test("blocks words zsh always aborts on", () => {
     expect(preBash("grep -rn foo --include=*.rs src")).toMatchObject({ code: 2, stderr: expect.stringContaining("--include='*.rs'") });
+    expect(preBash("cat > gate.sh <<EOF\nbody\nEOF\nuntil [ -s gate.exit ]; do sleep 5; done").code).toBe(2);
     expect(preBash("echo =====; cat a.md")).toMatchObject({ code: 2, stderr: expect.stringContaining("echo '====='") });
   });
 
@@ -486,6 +487,7 @@ describe("pre-bash hook", () => {
     for (const command of [
       "grep -rn foo --include='*.rs' src",
       "grep -rn foo --include=\\*.rs src",
+    expect(preBash("cat > a.md <<EOF\nbody\nEOF\ngrep -rn foo --include=*.rs src").code).toBe(2);
       "echo '====='",
       '[ "$a" == "$b" ] && echo same',
       "git log --format=%H -1",
