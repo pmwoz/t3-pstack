@@ -29,13 +29,14 @@ Run this when `upstream.commits` is not empty.
 
 Run this when `t3.commits`, `changedContractFiles`, `toolsAdded`, `toolsRemoved`, or `newContractFiles` is not empty.
 
-1. Run `bun run t3:pin` and read `git diff t3/contract`.
-2. Sort every change into one of three groups:
+1. Pin the T3 build that sessions run on this machine, not `main`. Read `serverVersion` from `~/.t3/userdata/server-runtime.json` and run `bun run t3:pin v<serverVersion>`. T3 tags every release and nightly build as `v<version>`. A contract ahead of the installed build makes the adapter name parameters that the running server rejects. If the tag does not exist, such as for a local build, stop this section and say so.
+2. Read `git diff t3/contract`. If it is empty, the installed build has not moved. Stop this section and report `t3.commits` as waiting for a T3 update.
+3. Sort every change into one of three groups:
    - **Breaks a mapping.** A tool was renamed or removed, an access rule changed, or T3's injected instructions now say something else. Fix the adapter in this PR. `bun run check` fails on a tool name the adapter uses that no longer exists.
    - **New capability.** A new tool, option, or behavior that a skill could use. Do not adopt it in this PR. List it under "Opportunities" in the PR body, one line each, naming the skill or adapter section that would use it.
    - **Irrelevant to the skills.** Give only the count.
-3. Run the checks from step 2.5. Bump the patch version if the plugin changed.
-4. Open a PR titled `Update T3 contract to <short sha>`.
+4. Run the checks from step 2.5. Bump the patch version if the plugin changed.
+5. Open a PR titled `Update T3 contract to <short sha>`.
 
 ## 4. Report
 
