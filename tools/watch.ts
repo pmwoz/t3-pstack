@@ -25,7 +25,7 @@ if (import.meta.main) {
   const upstreamHead = resolveRef(pins.upstream.repo, "main");
   const upstreamCommits = upstreamHead === pins.upstream.commit ? [] : commitsTouching(pins.upstream.repo, pins.upstream.commit, upstreamHead, snapshotSources(pins));
 
-  const t3Head = resolveRef(pins.t3.repo, "main");
+  const t3Head = resolveRef(pins.t3.repo, process.argv[2] ?? "main");
   const t3Commits = t3Head === pins.t3.commit ? [] : commitsTouching(pins.t3.repo, pins.t3.commit, t3Head, pins.t3.paths);
   const pinnedContract = readTree(join(T3_DIR, "contract"));
   const headPaths = contractPaths(pins, t3Head);

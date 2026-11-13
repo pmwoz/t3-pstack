@@ -96,7 +96,7 @@ Claude refuses a Skill tool call to a skill marked `disable-model-invocation: tr
 
 | Command | What it does |
 |---|---|
-| `bun run watch` | Lists upstream commits and T3 contract commits since the pins, changed or added T3 contract files, and added or removed T3 tools. Read-only. |
+| `bun run watch [t3-ref]` | Lists upstream commits and T3 contract commits since the pins, with T3 read at `t3-ref` (default `main`), changed or added T3 contract files, and added or removed T3 tools. Read-only. |
 | `bun run sync [ref]` | Three-way merges upstream at `ref` (default `main`) into `plugins/pstack`, then replaces `upstream/` and moves the pin. Exits with code 2 on conflicts. |
 | `bun run t3:pin [ref]` | Copies the T3 contract files at `ref` into `t3/contract/` and moves the pin. |
 | `bun run check` | Runs the drift check described above. |
