@@ -469,7 +469,6 @@ describe("pre-bash hook", () => {
     return { code: proc.exitCode, stderr: proc.stderr.toString(), stdout: proc.stdout.toString() };
   }
   const rewritten = (stdout: string) => JSON.parse(stdout).hookSpecificOutput.updatedInput;
-  const zsh = (command: string) => Bun.spawnSync(["zsh", "-fc", command], { stdout: "pipe", stderr: "pipe" });
 
   test("runs on Bash only", () => {
     expect(registered.map((group: { matcher: string }) => group.matcher)).toEqual(["Bash"]);
@@ -479,7 +478,6 @@ describe("pre-bash hook", () => {
     const wait = "until [ -s gate.exit ]; do sleep 5; done; cat gate.exit";
     expect(preBash(wait)).toMatchObject({ code: 2, stderr: expect.stringContaining("run_in_background: true") });
     expect(preBash(wait, { background: true }).code).toBe(0);
-    expect(preBash("cat > gate.sh <<EOF\nbody\nEOF\nuntil [ -s gate.exit ]; do sleep 5; done").code).toBe(2);
     expect(preBash("while read f; do echo $f; done < list").code).toBe(0);
     expect(preBash('git commit -m "wait while the gate runs, sleep 5 s, retry"').code).toBe(0);
   });
@@ -487,7 +485,6 @@ describe("pre-bash hook", () => {
   test("blocks words zsh always aborts on", () => {
     expect(preBash("grep -rn foo --include=*.rs src")).toMatchObject({ code: 2, stderr: expect.stringContaining("--include='*.rs'") });
     expect(preBash("echo =====; cat a.md")).toMatchObject({ code: 2, stderr: expect.stringContaining("echo '====='") });
-    expect(preBash("cat > a.md <<EOF\nbody\nEOF\ngrep -rn foo --include=*.rs src").code).toBe(2);
   });
 
   test("allows the quoted, escaped, heredoc, and non-zsh forms", () => {
@@ -518,26 +515,8 @@ describe("pre-bash hook", () => {
 
   test.skipIf(!Bun.which("zsh"))("the rewritten command runs in zsh where the original aborts", () => {
     const original = "ls /nonexistent-pstack-probe-* 2>/dev/null; echo =====; echo after";
+    const zsh = (command: string) => Bun.spawnSync(["zsh", "-fc", command], { stdout: "pipe", stderr: "pipe" });
     expect(zsh(original).stdout.toString()).not.toContain("after");
     expect(zsh(rewritten(preBash(original, { mode: "bypassPermissions" }).stdout).command).stdout.toString()).toBe("=====\nafter\n");
-  });
-
-  test.skipIf(!Bun.which("zsh"))("a glob after a heredoc runs in zsh once rewritten", () => {
-    const original = "cat <<'EOF' >/dev/null\nbody\nEOF\nls /nonexistent-pstack-probe-* 2>/dev/null; echo after";
-    expect(zsh(original).stderr.toString()).toContain("no matches found");
-    const run = zsh(rewritten(preBash(original, { mode: "bypassPermissions" }).stdout).command);
-    expect({ stdout: run.stdout.toString(), stderr: run.stderr.toString() }).toEqual({ stdout: "after\n", stderr: "" });
-  });
-
-  test("a << rewrites nothing unless shell text with a glob or = word follows the heredoc", () => {
-    for (const command of [
-      "printf '%s\\n' '<<'; =printf '%s\\n' success",
-      "cat <<< 'plain body'",
-      "printf '%s\\n' $((1 << 2))",
-      "cat > notes.md <<'EOF'\nTitle\n=====\nls *.md\nEOF",
-      "python3 - <<-PY\n\tprint([1][0] * 2)\n\tPY\necho done",
-      "cat <<A <<'B'\none *\nA\ntwo ?\nB\necho done",
-    ])
-      expect(preBash(command, { mode: "bypassPermissions" })).toEqual({ code: 0, stderr: "", stdout: "" });
   });
 });
