@@ -9,7 +9,9 @@ Work on a new branch off `main`. Open one PR per concern and never merge it. The
 
 ## 1. See what moved
 
-Run `bun install` once, then `bun run watch`. It prints JSON with the upstream commits and the T3 contract commits since the pins in `pins.json`, the T3 contract files whose content changed (`t3.changedContractFiles`), plus T3 tools added or removed.
+Run `bun install` once. Read `serverVersion` from `~/.t3/userdata/server-runtime.json`. The T3 ref for this run is the tag `v<serverVersion>`, which is the build that sessions run on this machine. T3 tags every release and nightly build that way. Never use `main` for T3, because a contract ahead of the installed build makes the adapter name parameters that the running server rejects.
+
+Run `bun run watch v<serverVersion>`. It prints JSON with the upstream commits since the pin in `pins.json`, the T3 contract commits between the T3 pin and that build, the T3 contract files whose content differs (`t3.changedContractFiles`), plus T3 tools added or removed. If the tag does not exist, such as for a local T3 build, run `bun run watch` with no ref, skip section 3, and say so.
 
 If both commit lists and `t3.changedContractFiles` are empty and no tool changed, reply with both pins and "nothing new", and stop.
 
@@ -29,7 +31,7 @@ Run this when `upstream.commits` is not empty.
 
 Run this when `t3.commits`, `changedContractFiles`, `toolsAdded`, `toolsRemoved`, or `newContractFiles` is not empty.
 
-1. Run `bun run t3:pin` and read `git diff t3/contract`.
+1. Run `bun run t3:pin v<serverVersion>` and read `git diff t3/contract`.
 2. Sort every change into one of three groups:
    - **Breaks a mapping.** A tool was renamed or removed, an access rule changed, or T3's injected instructions now say something else. Fix the adapter in this PR. `bun run check` fails on a tool name the adapter uses that no longer exists.
    - **New capability.** A new tool, option, or behavior that a skill could use. Do not adopt it in this PR. List it under "Opportunities" in the PR body, one line each, naming the skill or adapter section that would use it.

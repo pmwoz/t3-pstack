@@ -32,8 +32,8 @@ function repoCopy(): string {
   return dir;
 }
 
-function runTool(cwd: string, script: string, env: Record<string, string> = {}) {
-  const proc = Bun.spawnSync(["bun", `tools/${script}`], { cwd, env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe" });
+function runTool(cwd: string, script: string, env: Record<string, string> = {}, args: string[] = []) {
+  const proc = Bun.spawnSync(["bun", `tools/${script}`, ...args], { cwd, env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe" });
   return { code: proc.exitCode, stdout: proc.stdout.toString(), stderr: proc.stderr.toString() };
 }
 
@@ -196,6 +196,7 @@ test("check rejects a T3 contract that lacks a pinned file", () => {
 });
 
 const head = "b".repeat(40);
+const tagged = "c".repeat(40);
 const device = "apps/server/src/mcp/toolkits/device/tools.ts";
 const ghDir = tempDir();
 writeFileSync(
@@ -206,6 +207,7 @@ writeFileSync(
     'const api = process.argv.slice(2).find((a) => a.startsWith("repos/")) ?? "";',
     'const file = api.split("/contents/")[1]?.split("?ref=")[0];',
     `if (api.endsWith("/commits/main")) console.log('{"sha":"${head}"}');`,
+    `else if (api.endsWith("/commits/v9.9.9")) console.log('{"sha":"${tagged}"}');`,
     'else if (api.includes("/commits/")) console.log(\'{"commit":{"committer":{"date":"2026-10-14T00:00:00Z"}}}\');',
     'else if (api.includes("/commits?")) console.log("[]");',
     'else if (file === "apps/server/src/mcp/toolkits")',
@@ -216,8 +218,8 @@ writeFileSync(
   ].join("\n"),
 );
 chmodSync(join(ghDir, "gh"), 0o755);
-const fakeGh = (dir: string, script: string, env: Record<string, string>) =>
-  runTool(dir, script, { PATH: `${ghDir}:${process.env.PATH}`, CONTRACT: join(ROOT, "t3/contract"), ...env });
+const fakeGh = (dir: string, script: string, env: Record<string, string>, args: string[] = []) =>
+  runTool(dir, script, { PATH: `${ghDir}:${process.env.PATH}`, CONTRACT: join(ROOT, "t3/contract"), ...env }, args);
 // A test that runs fakeGh copies the repo and spawns the stub gh once per contract file, which takes over 5 s on a loaded machine.
 const fakeGhTimeout = 60_000;
 
@@ -282,6 +284,10 @@ describe("watch", () => {
 
   test("reports no change when T3 moved without touching the contract", () => {
     expect(watch(repoCopy(), {}).changedContractFiles).toEqual([]);
+  }, fakeGhTimeout);
+
+  test("compares the pin with the T3 ref it is given", () => {
+    expect(JSON.parse(fakeGh(repoCopy(), "watch.ts", {}, ["v9.9.9"]).stdout).t3.head).toBe("cccccccccc");
   }, fakeGhTimeout);
 
   test("reports a deleted toolkit and its tools", () => {
