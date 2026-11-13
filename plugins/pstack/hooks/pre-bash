@@ -26,7 +26,8 @@ case "${SHELL:-}" in
   *) exit 0 ;;
 esac
 # Claude Code refuses setopt outside bypassPermissions as a security check, so other modes keep the blocks below.
-if [ "$mode" = bypassPermissions ] && grep -Eq '[][*?]|(^|[[:space:]])=' <<<"$unquoted"; then
+# The shell text after a heredoc is not checked, so a command with a heredoc always gets the prefix.
+if [ "$mode" = bypassPermissions ] && { [[ $command == *'<<'* ]] || grep -Eq '[][*?]|(^|[[:space:]])=' <<<"$unquoted"; }; then
   jq -c '{hookSpecificOutput: {hookEventName: "PreToolUse", updatedInput: (.tool_input + {command: ("setopt nonomatch; unsetopt equals; " + .tool_input.command)})}}' <<<"$input"
   exit 0
 fi
