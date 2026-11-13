@@ -520,4 +520,16 @@ describe("pre-bash hook", () => {
     const run = zsh(rewritten(preBash(original, { mode: "bypassPermissions" }).stdout).command);
     expect({ stdout: run.stdout.toString(), stderr: run.stderr.toString() }).toEqual({ stdout: "after\n", stderr: "" });
   });
+
+  test("a << rewrites nothing unless shell text with a glob or = word follows the heredoc", () => {
+    for (const command of [
+      "printf '%s\\n' '<<'; =printf '%s\\n' success",
+      "cat <<< 'plain body'",
+      "printf '%s\\n' $((1 << 2))",
+      "cat > notes.md <<'EOF'\nTitle\n=====\nls *.md\nEOF",
+      "python3 - <<-PY\n\tprint([1][0] * 2)\n\tPY\necho done",
+      "cat <<A <<'B'\none *\nA\ntwo ?\nB\necho done",
+    ])
+      expect(preBash(command, { mode: "bypassPermissions" })).toEqual({ code: 0, stderr: "", stdout: "" });
+  });
 });
