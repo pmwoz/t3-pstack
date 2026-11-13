@@ -218,6 +218,8 @@ writeFileSync(
 chmodSync(join(ghDir, "gh"), 0o755);
 const fakeGh = (dir: string, script: string, env: Record<string, string>) =>
   runTool(dir, script, { PATH: `${ghDir}:${process.env.PATH}`, CONTRACT: join(ROOT, "t3/contract"), ...env });
+// A test that runs fakeGh copies the repo and spawns the stub gh once per contract file, which takes over 5 s on a loaded machine.
+const fakeGhTimeout = 60_000;
 
 describe("t3:pin", () => {
   const pin = (dir: string, env: Record<string, string>) => fakeGh(dir, "t3.ts", env);
@@ -230,7 +232,7 @@ describe("t3:pin", () => {
       "cannot fetch packages/provider-core/src/server/orchestrationInstructions.ts at bbbbbbbbbb: gh: HTTP 502: Bad Gateway",
     );
     expect(git(dir, "status", "--porcelain")).toBe("");
-  });
+  }, fakeGhTimeout);
 
   test("keeps the contract and the pin when T3 no longer has a pinned file", () => {
     const dir = repoCopy();
@@ -238,7 +240,7 @@ describe("t3:pin", () => {
     expect(r.code).toBe(1);
     expect(r.stderr).toContain(`T3 bbbbbbbbbb has no ${device}. Point each at its new path in pins.json t3.paths, or remove it there.`);
     expect(git(dir, "status", "--porcelain")).toBe("");
-  });
+  }, fakeGhTimeout);
 
   test("moves the pin and keeps every pinned path", () => {
     const dir = repoCopy();
@@ -246,7 +248,7 @@ describe("t3:pin", () => {
     expect(r.code).toBe(0);
     expect(git(dir, "status", "--porcelain")).toBe(" M pins.json");
     expect(JSON.parse(readFileSync(join(dir, "pins.json"), "utf8")).t3).toEqual({ ...loadPins().t3, commit: head });
-  });
+  }, fakeGhTimeout);
 });
 
 describe("watch", () => {
@@ -276,11 +278,11 @@ describe("watch", () => {
       toolsAdded: [],
       toolsRemoved: [],
     });
-  });
+  }, fakeGhTimeout);
 
   test("reports no change when T3 moved without touching the contract", () => {
     expect(watch(repoCopy(), {}).changedContractFiles).toEqual([]);
-  });
+  }, fakeGhTimeout);
 
   test("reports a deleted toolkit and its tools", () => {
     const t3 = watch(repoCopy(), { ABSENT: device });
@@ -288,7 +290,7 @@ describe("watch", () => {
       changed: [device],
       removed: ["device_close", "device_list", "device_open", "device_screenshot"],
     });
-  });
+  }, fakeGhTimeout);
 
   test("reports a new toolkit as new, not changed", () => {
     const contract = remote();
@@ -300,7 +302,7 @@ describe("watch", () => {
       changed: [],
       added: ["fresh_tool"],
     });
-  });
+  }, fakeGhTimeout);
 
   test("fails without writing when a download fails", () => {
     const dir = repoCopy();
@@ -308,7 +310,7 @@ describe("watch", () => {
     expect(r.code).toBe(1);
     expect(r.stderr).toContain(`cannot fetch ${schema} at bbbbbbbbbb: gh: HTTP 502: Bad Gateway`);
     expect(git(dir, "status", "--porcelain")).toBe("");
-  });
+  }, fakeGhTimeout);
 });
 
 describe("sync", () => {
