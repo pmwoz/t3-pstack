@@ -23,12 +23,13 @@
   },
   "t3": {
     "repo": "pingdotgg/t3code",
-    "commit": "c9e9e7d36a91044bdcd9c7e1163c97de297f5bde",
+    "commit": "2808e878de91aacc7fb82887f18414976be7ae34",
     "paths": [
       "apps/server/src/mcp/McpToolExposure.ts",
       "apps/server/src/mcp/toolkits/attachment/tools.ts",
       "apps/server/src/mcp/toolkits/device/tools.ts",
       "apps/server/src/mcp/toolkits/environment/tools.ts",
+      "apps/server/src/mcp/toolkits/feedback/tools.ts",
       "apps/server/src/mcp/toolkits/html/tools.ts",
       "apps/server/src/mcp/toolkits/issues/tools.ts",
       "apps/server/src/mcp/toolkits/message/tools.ts",
@@ -40,6 +41,7 @@
       "apps/server/src/mcp/toolkits/theme/tools.ts",
       "apps/server/src/mcp/toolkits/thread/tools.ts",
       "apps/server/src/mcp/toolkits/toolSearch/tools.ts",
+      "apps/server/src/mcp/toolkits/workflow/tools.ts",
       "apps/server/src/mcp/toolkits/worktree/tools.ts",
       "apps/server/src/provider/Drivers/ClaudeSkillDispatch.ts",
       "apps/server/src/provider/Drivers/ClaudeSkills.ts",
