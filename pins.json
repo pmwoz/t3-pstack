@@ -23,7 +23,7 @@
   },
   "t3": {
     "repo": "pingdotgg/t3code",
-    "commit": "bf961f8121c6336915ecf7b3f97ce6e68ab38fd7",
+    "commit": "ee5b8469be04c8ec11c3016e7fdbdd1047082155",
     "paths": [
       "apps/server/src/mcp/McpToolExposure.ts",
       "apps/server/src/mcp/toolkits/attachment/tools.ts",
